@@ -4,6 +4,10 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Categories from "./pages/Categories";
 import Questions from "./pages/Questions";
+import Users from "./pages/Users";
+import Leaderboard from "./pages/Leaderboard";
+import Redeems from "./pages/Redeems";
+import Analytics from "./pages/Analytics";
 import DashboardLayout from "./components/DashboardLayout";
 import Website from "./Website";
 
@@ -18,6 +22,10 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="categories" element={<Categories />} />
             <Route path="questions" element={<Questions />} />
+            <Route path="users" element={<Users />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="redeems" element={<Redeems />} />
+            <Route path="analytics" element={<Analytics />} />
           </Route>
         </Routes>
       </Router>

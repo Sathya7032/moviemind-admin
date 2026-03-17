@@ -5,7 +5,7 @@ const Navbar = ({ onToggleSidebar }) => {
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 sticky top-0 z-50">
+    <header className="flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="flex items-center gap-4">
         <button
           className="hidden max-md:flex items-center justify-center w-9 h-9 border-none rounded-lg bg-gray-100 text-gray-700 text-xl cursor-pointer hover:bg-gray-200 transition-colors"

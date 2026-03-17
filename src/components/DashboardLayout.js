@@ -25,7 +25,7 @@ const DashboardLayout = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 ml-0 md:ml-[260px] flex flex-col min-h-screen">
         <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>

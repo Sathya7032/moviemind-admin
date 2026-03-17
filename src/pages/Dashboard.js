@@ -1,50 +1,103 @@
-import { FiFilm, FiUsers, FiTrendingUp, FiAward } from "react-icons/fi";
+import { useState, useEffect, useCallback } from "react";
+import {
+  FiUsers, FiHelpCircle, FiGrid, FiTrendingUp,
+  FiUserCheck, FiUserX, FiClock, FiRefreshCw,
+  FiAward,
+} from "react-icons/fi";
+import { NavLink } from "react-router-dom";
+import { getAllUsers } from "../services/userService";
+import { getAllCategories } from "../services/categoryService";
+import { getAllQuestions } from "../services/questionService";
+import { getAllRedeems } from "../services/redeemService";
+import { getFullLeaderboard } from "../services/leaderboardService";
+
+const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
+const STATUS_CHIP = {
+  PENDING:    "bg-amber-50 text-amber-700 border border-amber-200",
+  PROCESSING: "bg-blue-50 text-blue-700 border border-blue-200",
+  APPROVED:   "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  REJECTED:   "bg-red-50 text-red-700 border border-red-200",
+};
+
+const SkeletonRow = ({ cols }) => (
+  <tr>
+    {Array.from({ length: cols }).map((_, i) => (
+      <td key={i} className="px-5 py-3.5">
+        <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: i === 1 ? 120 : 70 }} />
+      </td>
+    ))}
+  </tr>
+);
+
+const fmt = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const Dashboard = () => {
+  const [users,       setUsers]       = useState([]);
+  const [categories,  setCategories]  = useState([]);
+  const [questions,   setQuestions]   = useState([]);
+  const [redeems,     setRedeems]     = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [u, c, q, r, l] = await Promise.allSettled([
+        getAllUsers(), getAllCategories(), getAllQuestions(),
+        getAllRedeems(), getFullLeaderboard(),
+      ]);
+      if (u.status === "fulfilled" && u.value.success) setUsers(u.value.data);
+      if (c.status === "fulfilled" && c.value.success) setCategories(c.value.data);
+      if (q.status === "fulfilled" && q.value.success) setQuestions(q.value.data);
+      if (r.status === "fulfilled" && r.value.success) setRedeems(r.value.data);
+      if (l.status === "fulfilled" && l.value.success) setLeaderboard(l.value.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const activeUsers    = users.filter(u => u.status === "ACTIVE").length;
+  const inactiveUsers  = users.filter(u => u.status !== "ACTIVE").length;
+  const pendingRedeems = redeems.filter(r => r.status === "PENDING").length;
+  const approvedCoins  = redeems.filter(r => r.status === "APPROVED").reduce((s, r) => s + r.coins, 0);
+  const recentRedeems  = [...redeems].slice(0, 5);
+  const top5           = leaderboard.slice(0, 5);
+
   const stats = [
-    { label: "Total Movies", value: "1,248", icon: <FiFilm />, color: "text-indigo-500", bg: "bg-indigo-50" },
-    { label: "Active Users", value: "8,492", icon: <FiUsers />, color: "text-emerald-500", bg: "bg-emerald-50" },
-    { label: "Games Played", value: "34,567", icon: <FiTrendingUp />, color: "text-amber-500", bg: "bg-amber-50" },
-    { label: "Avg Score", value: "72%", icon: <FiAward />, color: "text-red-500", bg: "bg-red-50" },
+    { label: "Total Users",      value: users.length,       icon: <FiUsers />,     color: "text-indigo-500",  bg: "bg-indigo-50"  },
+    { label: "Active Users",     value: activeUsers,        icon: <FiUserCheck />, color: "text-emerald-500", bg: "bg-emerald-50" },
+    { label: "Total Questions",  value: questions.length,   icon: <FiHelpCircle />,color: "text-purple-500",  bg: "bg-purple-50"  },
+    { label: "Categories",       value: categories.length,  icon: <FiGrid />,      color: "text-teal-500",   bg: "bg-teal-50"    },
+    { label: "Pending Redeems",  value: pendingRedeems,     icon: <FiClock />,     color: "text-amber-500",  bg: "bg-amber-50"   },
+    { label: "Inactive Users",   value: inactiveUsers,      icon: <FiUserX />,     color: "text-red-500",    bg: "bg-red-50"     },
+    { label: "Leaderboard",      value: leaderboard.length, icon: <FiTrendingUp />,color: "text-blue-500",   bg: "bg-blue-50"    },
+    { label: "Approved Coins",   value: `${approvedCoins.toLocaleString()} 🪙`, icon: <FiAward />, color: "text-orange-500", bg: "bg-orange-50" },
   ];
-
-  const recentMovies = [
-    { id: 1, title: "Inception", difficulty: "Hard", plays: 1240 },
-    { id: 2, title: "The Dark Knight", difficulty: "Medium", plays: 2340 },
-    { id: 3, title: "Interstellar", difficulty: "Hard", plays: 980 },
-    { id: 4, title: "Pulp Fiction", difficulty: "Medium", plays: 1870 },
-    { id: 5, title: "The Matrix", difficulty: "Easy", plays: 3210 },
-  ];
-
-  const topPlayers = [
-    { rank: 1, name: "John Doe", score: 9850, games: 142 },
-    { rank: 2, name: "Jane Smith", score: 9420, games: 138 },
-    { rank: 3, name: "Mike Johnson", score: 9100, games: 125 },
-    { rank: 4, name: "Sarah Lee", score: 8870, games: 119 },
-    { rank: 5, name: "Alex Brown", score: 8650, games: 112 },
-  ];
-
-  const difficultyClasses = {
-    Easy: "bg-green-100 text-green-800",
-    Medium: "bg-amber-100 text-amber-800",
-    Hard: "bg-red-100 text-red-800",
-  };
-
-  const rankClasses = {
-    1: "bg-amber-100 text-amber-600",
-    2: "bg-gray-200 text-gray-600",
-    3: "bg-orange-100 text-orange-600",
-  };
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Welcome to Javify Movie Guess Admin Panel</p>
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Welcome to Javify Movie Guess Admin Panel</p>
+        </div>
+        <button
+          onClick={fetchAll}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition disabled:opacity-50 shadow-sm"
+        >
+          <FiRefreshCw className={`text-sm ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+      {/* Stats grid — 4 cols */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -53,9 +106,13 @@ const Dashboard = () => {
             <div className={`w-12 h-12 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center text-xl shrink-0`}>
               {stat.icon}
             </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-800 leading-tight">{stat.value}</span>
-              <span className="text-xs text-gray-500 mt-0.5">{stat.label}</span>
+            <div className="min-w-0">
+              <div className="text-xl font-bold text-gray-800 leading-tight truncate">
+                {loading
+                  ? <span className="inline-block w-10 h-5 bg-gray-100 rounded animate-pulse" />
+                  : stat.value}
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5 truncate">{stat.label}</div>
             </div>
           </div>
         ))}
@@ -63,70 +120,99 @@ const Dashboard = () => {
 
       {/* Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recent Movies */}
+        {/* Recent Redeem Requests */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h3 className="text-base font-semibold text-gray-800">Recent Movies</h3>
-            <button className="text-xs font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition">View All</button>
+            <h3 className="text-base font-semibold text-gray-800">Recent Redeem Requests</h3>
+            <NavLink to="/dashboard/redeems" className="text-xs font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition">
+              View All
+            </NavLink>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Title</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Difficulty</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Plays</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentMovies.map((movie) => (
-                <tr key={movie.id} className="border-t border-gray-100 hover:bg-gray-50 transition">
-                  <td className="px-5 py-3 text-sm text-gray-700">{movie.title}</td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${difficultyClasses[movie.difficulty]}`}>
-                      {movie.difficulty}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-700">{movie.plays.toLocaleString()}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">ID</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Coins</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading
+                  ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={4} />)
+                  : recentRedeems.length === 0
+                    ? (
+                      <tr><td colSpan={4} className="px-5 py-8 text-center text-xs text-gray-400">No redeem requests yet</td></tr>
+                    )
+                    : recentRedeems.map((r) => (
+                      <tr key={r.redeemId} className="border-t border-gray-50 hover:bg-gray-50 transition">
+                        <td className="px-5 py-3">
+                          <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{r.redeemId}</span>
+                        </td>
+                        <td className="px-5 py-3 text-sm font-semibold text-gray-700">
+                          {r.coins?.toLocaleString()} <span className="text-gray-400 font-normal">🪙</span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_CHIP[r.status] ?? "bg-gray-100 text-gray-500"}`}>
+                            {r.status?.charAt(0) + r.status?.slice(1).toLowerCase()}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-gray-500">{fmt(r.requestedAt)}</td>
+                      </tr>
+                    ))
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Top Players */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 className="text-base font-semibold text-gray-800">Top Players</h3>
-            <button className="text-xs font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition">View All</button>
+            <NavLink to="/dashboard/leaderboard" className="text-xs font-medium text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition">
+              View All
+            </NavLink>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">#</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Player</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Score</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Games</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topPlayers.map((player) => (
-                <tr key={player.rank} className="border-t border-gray-100 hover:bg-gray-50 transition">
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold ${rankClasses[player.rank] || "bg-gray-100 text-gray-500"}`}>
-                      {player.rank}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-700">{player.name}</td>
-                  <td className="px-5 py-3 text-sm text-gray-700">{player.score.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-sm text-gray-700">{player.games}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rank</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Player</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Coins</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading
+                  ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={3} />)
+                  : top5.length === 0
+                    ? (
+                      <tr><td colSpan={3} className="px-5 py-8 text-center text-xs text-gray-400">No leaderboard data yet</td></tr>
+                    )
+                    : top5.map((player) => (
+                      <tr key={player.userId} className="border-t border-gray-50 hover:bg-gray-50 transition">
+                        <td className="px-5 py-3">
+                          {player.rank <= 3
+                            ? <span className="text-lg">{MEDAL[player.rank]}</span>
+                            : <span className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold bg-gray-100 text-gray-500">#{player.rank}</span>
+                          }
+                        </td>
+                        <td className="px-5 py-3 text-sm font-medium text-gray-700">{player.username}</td>
+                        <td className="px-5 py-3 text-sm font-bold text-gray-800 text-right">{player.totalCoins?.toLocaleString()} <span className="font-normal text-gray-400">🪙</span></td>
+                      </tr>
+                    ))
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
+
+  
 };
 
 export default Dashboard;
