@@ -33,7 +33,7 @@ const LogoutModal = ({ onConfirm, onCancel }) => (
 
         <h2 className="text-lg font-bold text-gray-800">Confirm Logout</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Are you sure you want to log out of Javify Admin?
+          Are you sure you want to log out of MovieMind Admin?
         </p>
 
         <div className="mt-6 flex items-center gap-3 justify-end">
@@ -90,10 +90,10 @@ const Sidebar = ({ isOpen, onClose }) => {
       >
         <div className="flex items-center gap-3 px-6 py-5 border-b border-white/[0.07]">
           <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-xl font-bold text-white shrink-0">
-            J
+            🎬
           </div>
           <span className="text-lg font-bold text-white whitespace-nowrap">
-            Javify Admin
+            MovieMind
           </span>
         </div>
 
