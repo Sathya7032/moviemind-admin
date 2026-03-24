@@ -13,6 +13,7 @@ import {
   FiAlertTriangle,
   FiX,
   FiZap,
+  FiAward,
 } from "react-icons/fi";
 
 const LogoutModal = ({ onConfirm, onCancel }) => (
@@ -73,6 +74,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/users", icon: <FiUsers />, label: "Users" },
     { path: "/dashboard/leaderboard", icon: <FiTrendingUp />, label: "Leaderboard" },
     { path: "/dashboard/redeems", icon: <FiGift />, label: "Redeems" },
+    { path: "/dashboard/rewards", icon: <FiAward />, label: "Rewards" },
     { path: "/dashboard/analytics", icon: <FiBarChart2 />, label: "Analytics" },
     { path: "/dashboard/daily-challenges", icon: <FiZap />, label: "Daily Challenges" },
   ];
