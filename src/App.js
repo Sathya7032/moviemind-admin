@@ -8,6 +8,7 @@ import Users from "./pages/Users";
 import Leaderboard from "./pages/Leaderboard";
 import Redeems from "./pages/Redeems";
 import Analytics from "./pages/Analytics";
+import DailyChallenge from "./pages/DailyChallenge";
 import DashboardLayout from "./components/DashboardLayout";
 import Website from "./Website";
 
@@ -26,6 +27,7 @@ function App() {
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="redeems" element={<Redeems />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="daily-challenges" element={<DailyChallenge />} />
           </Route>
         </Routes>
       </Router>
