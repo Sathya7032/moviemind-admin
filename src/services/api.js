@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://javifybackend.bytebodh.in";
+ const API_BASE_URL = "https://javifybackend.bytebodh.in";
 // const API_BASE_URL = "http://localhost:8088"; // For local development
 
 const api = axios.create({

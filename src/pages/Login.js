@@ -51,9 +51,9 @@ const Login = () => {
       <div className="hidden md:flex flex-1 bg-gradient-to-br from-red-500 to-red-800 flex-col items-center justify-center relative overflow-hidden p-8">
         <div className="text-center text-white z-10">
           <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-4xl font-extrabold text-white mx-auto mb-6 border-2 border-white/30">
-            J
+            🎬
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Javify</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight">MovieMind</h1>
           <p className="mt-2 text-lg text-red-100">Admin Panel</p>
         </div>
         {/* floating shapes */}
@@ -69,8 +69,8 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Mobile brand */}
           <div className="md:hidden text-center mb-8">
-            <div className="w-14 h-14 bg-red-600 rounded-xl flex items-center justify-center text-2xl font-bold text-white mx-auto mb-3">J</div>
-            <h1 className="text-2xl font-bold text-gray-900">Javify</h1>
+            <div className="w-14 h-14 bg-red-600 rounded-xl flex items-center justify-center text-2xl font-bold text-white mx-auto mb-3">🎬</div>
+            <h1 className="text-2xl font-bold text-gray-900">MovieMind</h1>
           </div>
 
           <div className="mb-8">
@@ -88,7 +88,7 @@ const Login = () => {
                 <input
                   id="email"
                   type="email"
-                  placeholder="admin@javify.com"
+                  placeholder="admin@moviemind.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"

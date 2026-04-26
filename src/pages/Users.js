@@ -15,10 +15,27 @@ import {
   FiShield,
   FiAlertTriangle,
   FiX,
+  FiCalendar,
 } from "react-icons/fi";
 import { MdLeaderboard } from "react-icons/md";
 
 const PAGE_SIZE = 10;
+
+/* ── Format date helper ── */
+const formatDate = (dateString) => {
+  if (!dateString) return "—";
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+};
 
 const statusBadge = (status) => {
   const isActive = status === "ACTIVE";
@@ -202,6 +219,9 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [createdTimeFrom, setCreatedTimeFrom] = useState("");
+  const [createdTimeTo, setCreatedTimeTo] = useState("");
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   /* ── status modal state ── */
   const [modalUser, setModalUser] = useState(null);
@@ -216,7 +236,9 @@ const Users = () => {
     setLoading(true);
     try {
       const res = await getAllUsers();
+      console.log("Fetched users:", res.data);
       if (res.success) setUsers(res.data);
+      
       else toast.error("Failed to load users");
     } catch {
       toast.error("Failed to load users");
@@ -280,11 +302,25 @@ const Users = () => {
   /* ── derived ── */
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
       u.name?.toLowerCase().includes(q) ||
       u.email?.toLowerCase().includes(q) ||
-      u.role?.toLowerCase().includes(q)
-    );
+      u.role?.toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    /* Date filter */
+    if (createdTimeFrom || createdTimeTo) {
+      const userDate = new Date(u.createdTime);
+      if (createdTimeFrom && userDate < new Date(createdTimeFrom)) return false;
+      if (createdTimeTo) {
+        const endDate = new Date(createdTimeTo);
+        endDate.setHours(23, 59, 59, 999);
+        if (userDate > endDate) return false;
+      }
+    }
+
+    return true;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -295,6 +331,19 @@ const Users = () => {
   /* ── reset to page 1 on search change ── */
   const handleSearch = (e) => {
     setSearch(e.target.value);
+    setPage(1);
+  };
+
+  /* ── handle date filter change ── */
+  const handleDateFilterChange = () => {
+    setPage(1);
+  };
+
+  /* ── reset filters ── */
+  const resetFilters = () => {
+    setSearch("");
+    setCreatedTimeFrom("");
+    setCreatedTimeTo("");
     setPage(1);
   };
 
@@ -409,6 +458,66 @@ const Users = () => {
           </div>
         </div>
 
+        {/* ── Date Filter ── */}
+        {activeTab === "users" && (
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <button
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition"
+              >
+                <FiCalendar className="text-sm" />
+                Date Filter
+                {(createdTimeFrom || createdTimeTo) && (
+                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    Active
+                  </span>
+                )}
+              </button>
+
+              {(createdTimeFrom || createdTimeTo) && (
+                <button
+                  onClick={resetFilters}
+                  className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+
+            {showDateFilter && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">From Date</label>
+                    <input
+                      type="date"
+                      value={createdTimeFrom}
+                      onChange={(e) => {
+                        setCreatedTimeFrom(e.target.value);
+                        handleDateFilterChange();
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">To Date</label>
+                    <input
+                      type="date"
+                      value={createdTimeTo}
+                      onChange={(e) => {
+                        setCreatedTimeTo(e.target.value);
+                        handleDateFilterChange();
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Users Table ── */}
         {activeTab === "users" && (
           <>
@@ -423,6 +532,12 @@ const Users = () => {
                     </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                      <span className="flex items-center gap-1"><FiCalendar className="text-xs" /> Created</span>
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                      <span className="flex items-center gap-1"><FiCalendar className="text-xs" /> Updated</span>
+                    </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
@@ -430,7 +545,7 @@ const Users = () => {
                   {loading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i}>
-                        {Array.from({ length: 6 }).map((__, j) => (
+                        {Array.from({ length: 8 }).map((__, j) => (
                           <td key={j} className="px-5 py-3.5">
                             <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: j === 1 ? "160px" : "80px" }} />
                           </td>
@@ -439,7 +554,7 @@ const Users = () => {
                     ))
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-16 text-center text-gray-400 text-sm">
+                      <td colSpan={8} className="px-5 py-16 text-center text-gray-400 text-sm">
                         <FiUsers className="text-4xl mx-auto mb-3 text-gray-200" />
                         {search ? "No users match your search." : "No users found."}
                       </td>
@@ -466,6 +581,8 @@ const Users = () => {
                         <td className="px-5 py-3.5 text-sm text-gray-600">{user.email}</td>
                         <td className="px-5 py-3.5">{roleBadge(user.role)}</td>
                         <td className="px-5 py-3.5">{statusBadge(user.status)}</td>
+                        <td className="px-5 py-3.5 text-xs text-gray-600 font-mono">{formatDate(user.createdTime)}</td>
+                        <td className="px-5 py-3.5 text-xs text-gray-600 font-mono">{formatDate(user.updatedTime)}</td>
                         <td className="px-5 py-3.5">
                           {user.status === "ACTIVE" ? (
                             <button
