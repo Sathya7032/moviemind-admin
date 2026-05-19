@@ -19,7 +19,6 @@ import {
 } from "react-icons/fi";
 import { MdLeaderboard } from "react-icons/md";
 
-const PAGE_SIZE = 10;
 
 /* ── Format date helper ── */
 const formatDate = (dateString) => {
@@ -222,6 +221,8 @@ const Users = () => {
   const [createdTimeFrom, setCreatedTimeFrom] = useState("");
   const [createdTimeTo, setCreatedTimeTo] = useState("");
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const [pageSize, setPageSize] = useState(50);
+  const [sortOrder, setSortOrder] = useState("desc");
 
   /* ── status modal state ── */
   const [modalUser, setModalUser] = useState(null);
@@ -321,10 +322,14 @@ const Users = () => {
     }
 
     return true;
+  }).sort((a, b) => {
+    const dateA = new Date(a.createdTime || 0).getTime();
+    const dateB = new Date(b.createdTime || 0).getTime();
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const activeCount = users.filter((u) => u.status === "ACTIVE").length;
   const inactiveCount = users.filter((u) => u.status !== "ACTIVE").length;
 
@@ -344,6 +349,7 @@ const Users = () => {
     setSearch("");
     setCreatedTimeFrom("");
     setCreatedTimeTo("");
+    setSortOrder("desc");
     setPage(1);
   };
 
@@ -458,22 +464,35 @@ const Users = () => {
           </div>
         </div>
 
-        {/* ── Date Filter ── */}
+        {/* ── Date Filter & Sort ── */}
         {activeTab === "users" && (
           <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <button
-                onClick={() => setShowDateFilter(!showDateFilter)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition"
-              >
-                <FiCalendar className="text-sm" />
-                Date Filter
-                {(createdTimeFrom || createdTimeTo) && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    Active
-                  </span>
-                )}
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition"
+                >
+                  <FiCalendar className="text-sm" />
+                  Date Filter
+                  {(createdTimeFrom || createdTimeTo) && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      Active
+                    </span>
+                  )}
+                </button>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => {
+                    setSortOrder(e.target.value);
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  <option value="desc">Newest First</option>
+                  <option value="asc">Oldest First</option>
+                </select>
+              </div>
 
               {(createdTimeFrom || createdTimeTo) && (
                 <button
@@ -563,7 +582,7 @@ const Users = () => {
                     paginated.map((user, idx) => (
                       <tr key={user.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-5 py-3.5 text-sm text-gray-400">
-                          {(page - 1) * PAGE_SIZE + idx + 1}
+                          {(page - 1) * pageSize + idx + 1}
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
@@ -608,13 +627,32 @@ const Users = () => {
             </div>
 
             {/* Pagination */}
-            {!loading && filtered.length > PAGE_SIZE && (
-              <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 text-sm text-gray-500">
-                <span>
-                  Showing {(page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} users
-                </span>
-                <div className="flex items-center gap-1">
+            {!loading && filtered.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-4 border-t border-gray-100 text-sm text-gray-500 gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap justify-center text-center sm:text-left">
+                  <span>
+                    Showing {(page - 1) * pageSize + 1}–
+                    {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="pageSize" className="text-gray-500">Rows per page:</label>
+                    <select
+                      id="pageSize"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      className="border border-gray-200 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-300 bg-white text-gray-700"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-wrap justify-center">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
@@ -622,19 +660,34 @@ const Users = () => {
                   >
                     <FiChevronLeft />
                   </button>
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
-                        page === i + 1
-                          ? "bg-red-600 text-white shadow"
-                          : "hover:bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    // Only show 5 pages around the current page to keep it clean on mobile
+                    if (
+                      i === 0 ||
+                      i === totalPages - 1 ||
+                      (i >= page - 2 && i <= page)
+                    ) {
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setPage(i + 1)}
+                          className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
+                            page === i + 1
+                              ? "bg-red-600 text-white shadow"
+                              : "hover:bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      );
+                    } else if (
+                      (i === 1 && page > 3) ||
+                      (i === totalPages - 2 && page < totalPages - 2)
+                    ) {
+                      return <span key={i} className="px-1 text-gray-400">...</span>;
+                    }
+                    return null;
+                  })}
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}

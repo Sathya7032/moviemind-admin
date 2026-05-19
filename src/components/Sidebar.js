@@ -90,9 +90,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         ></div>
       )}
       <aside
-        className={`fixed top-0 left-0 w-[260px] h-screen bg-[#1e1e2d] text-[#a2a3b7] flex flex-col z-[100] transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0`}
+        className={`fixed top-0 left-0 w-[260px] h-screen bg-[#1e1e2d] text-[#a2a3b7] flex flex-col z-[100] transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
+          } md:translate-x-0`}
       >
         <div className="flex items-center gap-3 px-6 py-5 border-b border-white/[0.07]">
           <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-xl font-bold text-white shrink-0">
@@ -111,10 +110,9 @@ const Sidebar = ({ isOpen, onClose }) => {
                   to={item.path}
                   end={item.path === "/dashboard"}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium no-underline transition-all duration-200 ${
-                      isActive
-                        ? "bg-gradient-to-br from-red-500 to-red-700 text-white shadow-[0_4px_12px_rgba(239,68,68,0.4)]"
-                        : "text-[#a2a3b7] hover:bg-white/[0.06] hover:text-white"
+                    `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium no-underline transition-all duration-200 ${isActive
+                      ? "bg-gradient-to-br from-red-500 to-red-700 text-white shadow-[0_4px_12px_rgba(239,68,68,0.4)]"
+                      : "text-[#a2a3b7] hover:bg-white/[0.06] hover:text-white"
                     }`
                   }
                   onClick={onClose}

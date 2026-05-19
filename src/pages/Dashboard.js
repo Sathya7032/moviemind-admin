@@ -10,6 +10,7 @@ import { getAllCategories } from "../services/categoryService";
 import { getAllQuestions } from "../services/questionService";
 import { getAllRedeems } from "../services/redeemService";
 import { getFullLeaderboard } from "../services/leaderboardService";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
@@ -40,6 +41,8 @@ const Dashboard = () => {
   const [redeems,     setRedeems]     = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading,     setLoading]     = useState(true);
+  const [graphStartDate, setGraphStartDate] = useState("");
+  const [graphEndDate, setGraphEndDate] = useState("");
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -66,6 +69,43 @@ const Dashboard = () => {
   const approvedCoins  = redeems.filter(r => r.status === "APPROVED").reduce((s, r) => s + r.coins, 0);
   const recentRedeems  = [...redeems].slice(0, 5);
   const top5           = leaderboard.slice(0, 5);
+
+  const getGraphData = () => {
+    if (!users.length) return [];
+    let filteredUsers = users;
+    if (graphStartDate || graphEndDate) {
+      filteredUsers = users.filter((u) => {
+        if (!u.createdTime) return false;
+        const userDate = new Date(u.createdTime);
+        if (graphStartDate && userDate < new Date(graphStartDate)) return false;
+        if (graphEndDate) {
+          const endDate = new Date(graphEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          if (userDate > endDate) return false;
+        }
+        return true;
+      });
+    }
+
+    const rawCounts = {};
+    filteredUsers.forEach(u => {
+      if (!u.createdTime) return;
+      const d = new Date(u.createdTime);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      rawCounts[key] = (rawCounts[key] || 0) + 1;
+    });
+
+    return Object.keys(rawCounts).sort().map(key => {
+      const d = new Date(key);
+      return {
+        date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        users: rawCounts[key],
+      };
+    });
+  };
+
+  const graphData = getGraphData();
+  const totalGraphUsers = graphData.reduce((acc, item) => acc + item.users, 0);
 
   const stats = [
     { label: "Total Users",      value: users.length,       icon: <FiUsers />,     color: "text-indigo-500",  bg: "bg-indigo-50"  },
@@ -116,6 +156,71 @@ const Dashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Users Growth Graph */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-gray-100 gap-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">Users Growth</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {totalGraphUsers} users joined in selected period
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={graphStartDate}
+              onChange={(e) => setGraphStartDate(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <span className="text-gray-400 text-xs">to</span>
+            <input
+              type="date"
+              value={graphEndDate}
+              onChange={(e) => setGraphEndDate(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            {(graphStartDate || graphEndDate) && (
+              <button
+                onClick={() => { setGraphStartDate(""); setGraphEndDate(""); }}
+                className="text-xs text-red-500 hover:underline ml-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="p-5 h-72">
+          {loading ? (
+            <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg animate-pulse">
+              <FiTrendingUp className="text-4xl text-gray-300" />
+            </div>
+          ) : graphData.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+              No user data for selected period
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={graphData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="date" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  labelStyle={{ fontWeight: 'bold', color: '#374151' }}
+                />
+                <Area type="monotone" dataKey="users" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorUsers)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       {/* Tables */}
