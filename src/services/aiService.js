@@ -2,7 +2,7 @@ import axios from "axios";
 
 // NOTE: You should ideally move this to an environment variable (.env)
 // For now, it's a placeholder. Replace 'YOUR_GEMINI_API_KEY' with your actual key.
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
 
 export const generateQuestion = async (categoryName, gameMode, questionNumber = 1, difficulty = "medium", userPrompt = "") => {
