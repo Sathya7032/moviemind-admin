@@ -15,6 +15,7 @@ import {
   FiZap,
   FiAward,
   FiBell,
+  FiImage,
 } from "react-icons/fi";
 
 const LogoutModal = ({ onConfirm, onCancel }) => (
@@ -79,6 +80,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/analytics", icon: <FiBarChart2 />, label: "Analytics" },
     { path: "/dashboard/daily-challenges", icon: <FiZap />, label: "Daily Challenges" },
     { path: "/dashboard/updates", icon: <FiBell />, label: "Updates" },
+    { path: "/dashboard/banners", icon: <FiImage />, label: "Banners" },
   ];
 
   return (

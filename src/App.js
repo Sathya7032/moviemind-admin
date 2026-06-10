@@ -11,6 +11,7 @@ import Analytics from "./pages/Analytics";
 import DailyChallenge from "./pages/DailyChallenge";
 import Rewards from "./pages/Rewards";
 import Updates from "./pages/Updates";
+import Banners from "./pages/Banners";
 import DashboardLayout from "./components/DashboardLayout";
 import Website from "./Website";
 
@@ -32,6 +33,7 @@ function App() {
             <Route path="daily-challenges" element={<DailyChallenge />} />
             <Route path="rewards" element={<Rewards />} />
             <Route path="updates" element={<Updates />} />
+            <Route path="banners" element={<Banners />} />
           </Route>
         </Routes>
       </Router>
