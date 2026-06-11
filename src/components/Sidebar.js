@@ -16,6 +16,7 @@ import {
   FiAward,
   FiBell,
   FiImage,
+  FiTarget,
 } from "react-icons/fi";
 
 const LogoutModal = ({ onConfirm, onCancel }) => (
@@ -75,6 +76,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/questions", icon: <FiHelpCircle />, label: "Questions" },
     { path: "/dashboard/users", icon: <FiUsers />, label: "Users" },
     { path: "/dashboard/leaderboard", icon: <FiTrendingUp />, label: "Leaderboard" },
+    { path: "/dashboard/coin-battles", icon: <FiTarget />, label: "Coin Battles" },
     { path: "/dashboard/redeems", icon: <FiGift />, label: "Redeems" },
     { path: "/dashboard/rewards", icon: <FiAward />, label: "Rewards" },
     { path: "/dashboard/analytics", icon: <FiBarChart2 />, label: "Analytics" },

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { getAllUsers, deactivateUser, activateUser, getReferralLeaderboard } from "../services/userService";
 import { toast } from "react-toastify";
 import {
@@ -16,6 +17,7 @@ import {
   FiAlertTriangle,
   FiX,
   FiCalendar,
+  FiEye,
 } from "react-icons/fi";
 import { MdLeaderboard } from "react-icons/md";
 
@@ -603,21 +605,29 @@ const Users = () => {
                         <td className="px-5 py-3.5 text-xs text-gray-600 font-mono">{formatDate(user.createdTime)}</td>
                         <td className="px-5 py-3.5 text-xs text-gray-600 font-mono">{formatDate(user.updatedTime)}</td>
                         <td className="px-5 py-3.5">
-                          {user.status === "ACTIVE" ? (
-                            <button
-                              onClick={() => setModalUser(user)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition"
+                          <div className="flex items-center gap-2">
+                            <Link
+                              to={`/dashboard/users/${user.id}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
                             >
-                              <FiUserX /> Deactivate
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setModalUser(user)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition"
-                            >
-                              <FiUserCheck /> Activate
-                            </button>
-                          )}
+                              <FiEye /> View
+                            </Link>
+                            {user.status === "ACTIVE" ? (
+                              <button
+                                onClick={() => setModalUser(user)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition"
+                              >
+                                <FiUserX /> Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setModalUser(user)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition"
+                              >
+                                <FiUserCheck /> Activate
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

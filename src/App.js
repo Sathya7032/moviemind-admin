@@ -5,7 +5,10 @@ import Dashboard from "./pages/Dashboard";
 import Categories from "./pages/Categories";
 import Questions from "./pages/Questions";
 import Users from "./pages/Users";
+import UserDetail from "./pages/UserDetail";
 import Leaderboard from "./pages/Leaderboard";
+import CoinBattles from "./pages/CoinBattles";
+import CoinBattleDetail from "./pages/CoinBattleDetail";
 import Redeems from "./pages/Redeems";
 import Analytics from "./pages/Analytics";
 import DailyChallenge from "./pages/DailyChallenge";
@@ -27,7 +30,10 @@ function App() {
             <Route path="categories" element={<Categories />} />
             <Route path="questions" element={<Questions />} />
             <Route path="users" element={<Users />} />
+            <Route path="users/:id" element={<UserDetail />} />
             <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="coin-battles" element={<CoinBattles />} />
+            <Route path="coin-battles/:id" element={<CoinBattleDetail />} />
             <Route path="redeems" element={<Redeems />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="daily-challenges" element={<DailyChallenge />} />

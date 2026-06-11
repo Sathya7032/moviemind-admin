@@ -24,3 +24,19 @@ export const getReferralLeaderboard = async () => {
   const response = await api.get("/api/users/leaderboard");
   return response.data;
 };
+
+export const getUserSummaryById = async (id) => {
+  const response = await api.get(`/api/users/${id}/summary`);
+  return response.data;
+};
+
+export const getReferredUsersByUserId = async (id) => {
+  const response = await api.get(`/api/users/${id}/referred`);
+  return response.data;
+};
+
+export const getRewardTransactionsByUserId = async (id) => {
+  const response = await api.get(`/api/users/${id}/rewards`);
+  return response.data;
+};
+
