@@ -17,6 +17,7 @@ import {
   FiBell,
   FiImage,
   FiTarget,
+  FiMessageSquare,
 } from "react-icons/fi";
 
 const LogoutModal = ({ onConfirm, onCancel }) => (
@@ -83,6 +84,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/daily-challenges", icon: <FiZap />, label: "Daily Challenges" },
     { path: "/dashboard/updates", icon: <FiBell />, label: "Updates" },
     { path: "/dashboard/banners", icon: <FiImage />, label: "Banners" },
+    { path: "/dashboard/posts", icon: <FiMessageSquare />, label: "Posts" },
   ];
 
   return (
