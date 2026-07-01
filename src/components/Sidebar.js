@@ -18,6 +18,7 @@ import {
   FiImage,
   FiTarget,
   FiMessageSquare,
+  FiRotateCw,
 } from "react-icons/fi";
 
 const LogoutModal = ({ onConfirm, onCancel }) => (
@@ -80,6 +81,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/coin-battles", icon: <FiTarget />, label: "Coin Battles" },
     { path: "/dashboard/redeems", icon: <FiGift />, label: "Redeems" },
     { path: "/dashboard/rewards", icon: <FiAward />, label: "Rewards" },
+    { path: "/dashboard/spins", icon: <FiRotateCw />, label: "Spin Wheel" },
     { path: "/dashboard/analytics", icon: <FiBarChart2 />, label: "Analytics" },
     { path: "/dashboard/daily-challenges", icon: <FiZap />, label: "Daily Challenges" },
     { path: "/dashboard/updates", icon: <FiBell />, label: "Updates" },
