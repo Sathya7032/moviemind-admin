@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  FiUsers, FiHelpCircle, FiGrid, FiTrendingUp,
-  FiUserCheck, FiUserX, FiClock, FiRefreshCw,
+  FiUsers, FiHelpCircle, FiTrendingUp,
+  FiUserCheck, FiClock, FiRefreshCw,
   FiAward,
 } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { getAllUsers } from "../services/userService";
-import { getAllCategories } from "../services/categoryService";
 import { getAllQuestions } from "../services/questionService";
 import { getAllRedeems } from "../services/redeemService";
 import { getFullLeaderboard } from "../services/leaderboardService";
+import { getAnalytics } from "../services/analyticsService";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
@@ -36,26 +36,28 @@ const fmt = (iso) =>
 
 const Dashboard = () => {
   const [users,       setUsers]       = useState([]);
-  const [categories,  setCategories]  = useState([]);
   const [questions,   setQuestions]   = useState([]);
   const [redeems,     setRedeems]     = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [graphStartDate, setGraphStartDate] = useState("");
   const [graphEndDate, setGraphEndDate] = useState("");
+  const [analytics,   setAnalytics]   = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, c, q, r, l] = await Promise.allSettled([
-        getAllUsers(), getAllCategories(), getAllQuestions(),
-        getAllRedeems(), getFullLeaderboard(),
+      const [u, q, r, l, a] = await Promise.allSettled([
+        getAllUsers(0, 100000), getAllQuestions(),
+        getAllRedeems(), getFullLeaderboard(), getAnalytics(),
       ]);
-      if (u.status === "fulfilled" && u.value.success) setUsers(u.value.data);
-      if (c.status === "fulfilled" && c.value.success) setCategories(c.value.data);
+      if (u.status === "fulfilled" && u.value.success) {
+        setUsers(u.value.data?.content || (Array.isArray(u.value.data) ? u.value.data : []));
+      }
       if (q.status === "fulfilled" && q.value.success) setQuestions(q.value.data);
       if (r.status === "fulfilled" && r.value.success) setRedeems(r.value.data);
       if (l.status === "fulfilled" && l.value.success) setLeaderboard(l.value.data);
+      if (a.status === "fulfilled" && a.value.success) setAnalytics(a.value.data);
     } finally {
       setLoading(false);
     }
@@ -63,8 +65,6 @@ const Dashboard = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const activeUsers    = users.filter(u => u.status === "ACTIVE").length;
-  const inactiveUsers  = users.filter(u => u.status !== "ACTIVE").length;
   const pendingRedeems = redeems.filter(r => r.status === "PENDING").length;
   const approvedCoins  = redeems.filter(r => r.status === "APPROVED").reduce((s, r) => s + r.coins, 0);
   const recentRedeems  = [...redeems].slice(0, 5);
@@ -108,14 +108,14 @@ const Dashboard = () => {
   const totalGraphUsers = graphData.reduce((acc, item) => acc + item.users, 0);
 
   const stats = [
-    { label: "Total Users",      value: users.length,       icon: <FiUsers />,     color: "text-indigo-500",  bg: "bg-indigo-50"  },
-    { label: "Active Users",     value: activeUsers,        icon: <FiUserCheck />, color: "text-emerald-500", bg: "bg-emerald-50" },
-    { label: "Total Questions",  value: questions.length,   icon: <FiHelpCircle />,color: "text-purple-500",  bg: "bg-purple-50"  },
-    { label: "Categories",       value: categories.length,  icon: <FiGrid />,      color: "text-teal-500",   bg: "bg-teal-50"    },
-    { label: "Pending Redeems",  value: pendingRedeems,     icon: <FiClock />,     color: "text-amber-500",  bg: "bg-amber-50"   },
-    { label: "Inactive Users",   value: inactiveUsers,      icon: <FiUserX />,     color: "text-red-500",    bg: "bg-red-50"     },
-    { label: "Leaderboard",      value: leaderboard.length, icon: <FiTrendingUp />,color: "text-blue-500",   bg: "bg-blue-50"    },
-    { label: "Approved Coins",   value: `${approvedCoins.toLocaleString()} 🪙`, icon: <FiAward />, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Total Users",      value: analytics?.totalUsers ?? users.length,       icon: <FiUsers />,     color: "text-indigo-500",  bg: "bg-indigo-50"  },
+    { label: "Daily Active Users", value: analytics?.dailyActiveUsers ?? 0,          icon: <FiUserCheck />, color: "text-emerald-500", bg: "bg-emerald-50" },
+    { label: "Monthly Active Users", value: analytics?.monthlyActiveUsers ?? 0,      icon: <FiUserCheck />, color: "text-teal-500", bg: "bg-teal-50" },
+    { label: "Total Questions",  value: analytics?.totalQuestions ?? questions.length, icon: <FiHelpCircle />,color: "text-purple-500",  bg: "bg-purple-50"  },
+    { label: "Quiz Attempts",    value: analytics?.totalQuizAttempts ?? 0,           icon: <FiAward />,     color: "text-rose-500",    bg: "bg-rose-50"    },
+    { label: "Total Posts",      value: analytics?.totalPosts ?? 0,                  icon: <FiTrendingUp />,color: "text-blue-500",   bg: "bg-blue-50"    },
+    { label: "Pending Redeems",  value: pendingRedeems,                              icon: <FiClock />,     color: "text-amber-500",  bg: "bg-amber-50"   },
+    { label: "Approved Coins",   value: `${approvedCoins.toLocaleString()} 🪙`,        icon: <FiAward />,     color: "text-orange-500", bg: "bg-orange-50"  },
   ];
 
   return (

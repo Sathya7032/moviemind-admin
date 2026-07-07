@@ -632,11 +632,11 @@ const Rewards = () => {
     try {
       const [rewardsRes, usersRes, redeemsRes] = await Promise.all([
         getAllRewards(),
-        getAllUsers(),
+        getAllUsers(0, 100000),
         getAllRedeems(),
       ]);
 
-      const users = Array.isArray(usersRes) ? usersRes : usersRes?.data ?? [];
+      const users = Array.isArray(usersRes) ? usersRes : (usersRes?.data?.content || (Array.isArray(usersRes?.data) ? usersRes.data : []));
       const map = {};
       users.forEach((u) => {
         map[u.id] = u.fullName || u.username || u.email || `User #${u.id}`;

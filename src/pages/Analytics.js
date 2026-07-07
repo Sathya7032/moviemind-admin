@@ -4,11 +4,12 @@ import { getAllCategories } from "../services/categoryService";
 import { getAllQuestions } from "../services/questionService";
 import { getFullLeaderboard } from "../services/leaderboardService";
 import { getAllRedeems } from "../services/redeemService";
+import { getAnalytics } from "../services/analyticsService";
 import { toast } from "react-toastify";
 import {
   FiUsers, FiGrid, FiHelpCircle, FiTrendingUp, FiGift,
   FiRefreshCw, FiUserCheck, FiUserX, FiCheckCircle,
-  FiXCircle, FiClock, FiLoader, FiAward, FiCodesandbox,
+  FiXCircle, FiClock, FiLoader, FiAward,
 } from "react-icons/fi";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -108,22 +109,27 @@ const Analytics = () => {
   const [leaderboard,setLeaderboard]= useState([]);
   const [redeems,    setRedeems]    = useState([]);
   const [loading,    setLoading]    = useState(true);
+  const [analytics,  setAnalytics]  = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, c, q, l, r] = await Promise.allSettled([
-        getAllUsers(),
+      const [u, c, q, l, r, a] = await Promise.allSettled([
+        getAllUsers(0, 100000),
         getAllCategories(),
         getAllQuestions(),
         getFullLeaderboard(),
         getAllRedeems(),
+        getAnalytics(),
       ]);
-      if (u.status === "fulfilled" && u.value.success) setUsers(u.value.data);
+      if (u.status === "fulfilled" && u.value.success) {
+        setUsers(u.value.data?.content || (Array.isArray(u.value.data) ? u.value.data : []));
+      }
       if (c.status === "fulfilled" && c.value.success) setCategories(c.value.data);
       if (q.status === "fulfilled" && q.value.success) setQuestions(q.value.data);
       if (l.status === "fulfilled" && l.value.success) setLeaderboard(l.value.data);
       if (r.status === "fulfilled" && r.value.success) setRedeems(r.value.data);
+      if (a.status === "fulfilled" && a.value.success) setAnalytics(a.value.data);
     } catch {
       toast.error("Some analytics data failed to load");
     } finally {
@@ -220,17 +226,17 @@ const Analytics = () => {
 
       {/* ── KPI Grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Users"      value={users.length}       sub={`${activeUsers} active · ${inactiveUsers} inactive`}      icon={<FiUsers />}       color="text-indigo-500" bg="bg-indigo-50"  loading={loading} />
-        <KpiCard label="Total Questions"  value={questions.length}   sub={`Across ${categories.length} categories`}                 icon={<FiHelpCircle />}  color="text-purple-500" bg="bg-purple-50"  loading={loading} />
-        <KpiCard label="Redeem Requests"  value={redeems.length}     sub={`${redeems.filter(r=>r.status==="PENDING").length} pending`} icon={<FiGift />}      color="text-amber-500"  bg="bg-amber-50"   loading={loading} />
-        <KpiCard label="Wallet Leaders"   value={leaderboard.length} sub={`Top: ${leaderboard[0]?.username ?? "—"}`}                icon={<FiTrendingUp />}  color="text-emerald-500" bg="bg-emerald-50" loading={loading} />
+        <KpiCard label="Total Users"      value={analytics?.totalUsers ?? users.length}       sub={`${activeUsers} active · ${inactiveUsers} inactive`}      icon={<FiUsers />}       color="text-indigo-500" bg="bg-indigo-50"  loading={loading} />
+        <KpiCard label="Daily Active Users" value={analytics?.dailyActiveUsers ?? 0}          sub="Active in last 24h"                                       icon={<FiUserCheck />}    color="text-emerald-500" bg="bg-emerald-50"  loading={loading} />
+        <KpiCard label="Monthly Active Users" value={analytics?.monthlyActiveUsers ?? 0}      sub="Active in last 30d"                                       icon={<FiUserCheck />}    color="text-teal-500" bg="bg-teal-50"  loading={loading} />
+        <KpiCard label="Total Questions"  value={analytics?.totalQuestions ?? questions.length}   sub={`Across ${categories.length} categories`}                 icon={<FiHelpCircle />}  color="text-purple-500" bg="bg-purple-50"  loading={loading} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Active Users"     value={activeUsers}               icon={<FiUserCheck />}    color="text-emerald-500" bg="bg-emerald-50"  loading={loading} />
-        <KpiCard label="Inactive Users"   value={inactiveUsers}             icon={<FiUserX />}        color="text-red-500"    bg="bg-red-50"      loading={loading} />
-        <KpiCard label="Approved Coins"   value={`${approvedCoins.toLocaleString()} 🪙`} icon={<FiCheckCircle />} color="text-teal-500" bg="bg-teal-50" loading={loading} />
-        <KpiCard label="Pending Coins"    value={`${pendingCoins.toLocaleString()} 🪙`}  icon={<FiCodesandbox />} color="text-orange-500" bg="bg-orange-50" loading={loading} />
+        <KpiCard label="Quiz Attempts"    value={analytics?.totalQuizAttempts ?? 0}           sub="Total quiz game plays"                                    icon={<FiAward />}       color="text-rose-500" bg="bg-rose-50"  loading={loading} />
+        <KpiCard label="Total Posts"      value={analytics?.totalPosts ?? 0}                  sub="Forum community posts"                                    icon={<FiGrid />}        color="text-blue-500" bg="bg-blue-50"  loading={loading} />
+        <KpiCard label="Redeem Requests"  value={redeems.length}                              sub={`${redeems.filter(r=>r.status==="PENDING").length} pending`} icon={<FiGift />}      color="text-amber-500"  bg="bg-amber-50"   loading={loading} />
+        <KpiCard label="Approved Coins"   value={`${approvedCoins.toLocaleString()} 🪙`}        sub={`Pending: ${pendingCoins.toLocaleString()} 🪙`}           icon={<FiCheckCircle />} color="text-orange-500" bg="bg-orange-50" loading={loading} />
       </div>
 
       {/* ── Row 1: User Status Pie + Redeem Status Pie ── */}

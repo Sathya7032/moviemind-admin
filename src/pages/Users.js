@@ -225,6 +225,7 @@ const Users = () => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [pageSize, setPageSize] = useState(50);
   const [sortOrder, setSortOrder] = useState("desc");
+  const [totalElements, setTotalElements] = useState(0);
 
   /* ── status modal state ── */
   const [modalUser, setModalUser] = useState(null);
@@ -233,46 +234,82 @@ const Users = () => {
   const [activeTab, setActiveTab] = useState("users"); // 'users' | 'leaderboard'
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardPage, setLeaderboardPage] = useState(1);
+  const [leaderboardPageSize, setLeaderboardPageSize] = useState(50);
+  const [leaderboardTotalElements, setLeaderboardTotalElements] = useState(0);
+
+  /* ── stats state ── */
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  /* ── fetch stats ── */
+  const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await getAllUsers(0, 100000);
+      if (res.success && res.data?.content) {
+        const allUsers = res.data.content;
+        const total = res.data.totalElements || allUsers.length;
+        const active = allUsers.filter(u => u.status === "ACTIVE").length;
+        const inactive = total - active;
+        setStats({ total, active, inactive });
+      }
+    } catch (err) {
+      console.error("Failed to fetch user stats", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
 
   /* ── fetch users ── */
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAllUsers();
-      console.log("Fetched users:", res.data);
-      if (res.success) setUsers(res.data);
-      
-      else toast.error("Failed to load users");
+      const res = await getAllUsers(page - 1, pageSize, sortOrder);
+      if (res.success && res.data) {
+        setUsers(res.data.content || []);
+        setTotalElements(res.data.totalElements || 0);
+      } else {
+        toast.error("Failed to load users");
+      }
     } catch {
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, sortOrder]);
 
   /* ── fetch leaderboard ── */
   const fetchLeaderboard = useCallback(async () => {
     setLeaderboardLoading(true);
     try {
-      const res = await getReferralLeaderboard();
-      if (res.success) setLeaderboard(res.data);
-      else toast.error("Failed to load leaderboard");
+      const res = await getReferralLeaderboard(leaderboardPage - 1, leaderboardPageSize);
+      if (res.success && res.data) {
+        setLeaderboard(res.data.content || []);
+        setLeaderboardTotalElements(res.data.totalElements || 0);
+      } else {
+        toast.error("Failed to load leaderboard");
+      }
     } catch {
       toast.error("Failed to load leaderboard");
     } finally {
       setLeaderboardLoading(false);
     }
-  }, []);
+  }, [leaderboardPage, leaderboardPageSize]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
   useEffect(() => {
-    if (activeTab === "leaderboard" && leaderboard.length === 0) {
+    if (activeTab === "leaderboard") {
       fetchLeaderboard();
     }
-  }, [activeTab, fetchLeaderboard, leaderboard.length]);
+  }, [activeTab, fetchLeaderboard]);
 
   /* ── status change handler ── */
   const handleStatusChange = async () => {
@@ -293,6 +330,11 @@ const Users = () => {
             u.id === modalUser.id ? { ...u, status: newStatus } : u
           )
         );
+        setStats((prev) => ({
+          ...prev,
+          active: newStatus === "ACTIVE" ? prev.active + 1 : prev.active - 1,
+          inactive: newStatus === "INACTIVE" ? prev.inactive + 1 : prev.inactive - 1,
+        }));
         setModalUser(null);
       }
     } catch {
@@ -324,16 +366,10 @@ const Users = () => {
     }
 
     return true;
-  }).sort((a, b) => {
-    const dateA = new Date(a.createdTime || 0).getTime();
-    const dateB = new Date(b.createdTime || 0).getTime();
-    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const activeCount = users.filter((u) => u.status === "ACTIVE").length;
-  const inactiveCount = users.filter((u) => u.status !== "ACTIVE").length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / pageSize));
+  const paginated = filtered;
 
   /* ── reset to page 1 on search change ── */
   const handleSearch = (e) => {
@@ -378,21 +414,21 @@ const Users = () => {
         {[
           {
             label: "Total Users",
-            value: users.length,
+            value: stats.total,
             icon: <FiUsers />,
             color: "text-indigo-500",
             bg: "bg-indigo-50",
           },
           {
             label: "Active Users",
-            value: activeCount,
+            value: stats.active,
             icon: <FiUser />,
             color: "text-emerald-500",
             bg: "bg-emerald-50",
           },
           {
             label: "Inactive Users",
-            value: inactiveCount,
+            value: stats.inactive,
             icon: <FiUserX />,
             color: "text-red-500",
             bg: "bg-red-50",
@@ -408,7 +444,7 @@ const Users = () => {
               {s.icon}
             </div>
             <div>
-              <div className="text-xl font-bold text-gray-800">{loading ? "—" : s.value}</div>
+              <div className="text-xl font-bold text-gray-800">{statsLoading ? "—" : s.value}</div>
               <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
             </div>
           </div>
@@ -607,8 +643,8 @@ const Users = () => {
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
                             <Link
-                              to={`/dashboard/users/${user.id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
+                                to={`/dashboard/users/${user.id}`}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
                             >
                               <FiEye /> View
                             </Link>
@@ -637,12 +673,12 @@ const Users = () => {
             </div>
 
             {/* Pagination */}
-            {!loading && filtered.length > 0 && (
+            {!loading && totalElements > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-4 border-t border-gray-100 text-sm text-gray-500 gap-4">
                 <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap justify-center text-center sm:text-left">
                   <span>
                     Showing {(page - 1) * pageSize + 1}–
-                    {Math.min(page * pageSize, filtered.length)} of {filtered.length} users
+                    {Math.min(page * pageSize, totalElements)} of {totalElements} users
                   </span>
                   <div className="flex items-center gap-2">
                     <label htmlFor="pageSize" className="text-gray-500">Rows per page:</label>
@@ -744,54 +780,129 @@ const Users = () => {
                 No referral data available.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rank</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Referral Code</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Referrals</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {leaderboard.map((entry) => {
-                      const rs = rankStyle[entry.rank] || { bg: "bg-gray-50", text: "text-gray-500", label: `#${entry.rank}` };
-                      return (
-                        <tr key={entry.userId} className="hover:bg-gray-50/70 transition">
-                          <td className="px-5 py-3.5">
-                            <span
-                              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${rs.bg} ${rs.text}`}
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rank</th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Referral Code</th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Referrals</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {leaderboard.map((entry) => {
+                        const rs = rankStyle[entry.rank] || { bg: "bg-gray-50", text: "text-gray-500", label: `#${entry.rank}` };
+                        return (
+                          <tr key={entry.userId} className="hover:bg-gray-50/70 transition">
+                            <td className="px-5 py-3.5">
+                              <span
+                                className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${rs.bg} ${rs.text}`}
+                              >
+                                {entry.rank <= 3 ? rs.label : `#${entry.rank}`}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <Avatar name={entry.username} />
+                                <span className="text-sm font-semibold text-gray-800">{entry.username}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="font-mono text-sm bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md">
+                                {entry.referralCode}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-800">{entry.totalReferrals}</span>
+                                <span className="text-xs text-gray-400">referrals</span>
+                                {entry.rank === 1 && (
+                                  <FiAward className="text-amber-500 text-base" />
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Leaderboard Pagination */}
+                {!leaderboardLoading && leaderboardTotalElements > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-4 border-t border-gray-100 text-sm text-gray-500 gap-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap justify-center text-center sm:text-left">
+                      <span>
+                        Showing {(leaderboardPage - 1) * leaderboardPageSize + 1}–
+                        {Math.min(leaderboardPage * leaderboardPageSize, leaderboardTotalElements)} of {leaderboardTotalElements} entries
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="lbPageSize" className="text-gray-500">Rows per page:</label>
+                        <select
+                          id="lbPageSize"
+                          value={leaderboardPageSize}
+                          onChange={(e) => {
+                            setLeaderboardPageSize(Number(e.target.value));
+                            setLeaderboardPage(1);
+                          }}
+                          className="border border-gray-200 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-300 bg-white text-gray-700"
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap justify-center">
+                      <button
+                        onClick={() => setLeaderboardPage((p) => Math.max(1, p - 1))}
+                        disabled={leaderboardPage === 1}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        <FiChevronLeft />
+                      </button>
+                      {Array.from({ length: Math.max(1, Math.ceil(leaderboardTotalElements / leaderboardPageSize)) }).map((_, i) => {
+                        const lbTotalPages = Math.max(1, Math.ceil(leaderboardTotalElements / leaderboardPageSize));
+                        if (
+                          i === 0 ||
+                          i === lbTotalPages - 1 ||
+                          (i >= leaderboardPage - 2 && i <= leaderboardPage)
+                        ) {
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => setLeaderboardPage(i + 1)}
+                              className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
+                                leaderboardPage === i + 1
+                                  ? "bg-red-600 text-white shadow"
+                                  : "hover:bg-gray-100 text-gray-600"
+                              }`}
                             >
-                              {entry.rank <= 3 ? rs.label : `#${entry.rank}`}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <Avatar name={entry.username} />
-                              <span className="text-sm font-semibold text-gray-800">{entry.username}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <span className="font-mono text-sm bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md">
-                              {entry.referralCode}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-gray-800">{entry.totalReferrals}</span>
-                              <span className="text-xs text-gray-400">referrals</span>
-                              {entry.rank === 1 && (
-                                <FiAward className="text-amber-500 text-base" />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                              {i + 1}
+                            </button>
+                          );
+                        } else if (
+                          (i === 1 && leaderboardPage > 3) ||
+                          (i === lbTotalPages - 2 && leaderboardPage < lbTotalPages - 2)
+                        ) {
+                          return <span key={i} className="px-1 text-gray-400">...</span>;
+                        }
+                        return null;
+                      })}
+                      <button
+                        onClick={() => setLeaderboardPage((p) => Math.min(Math.max(1, Math.ceil(leaderboardTotalElements / leaderboardPageSize)), p + 1))}
+                        disabled={leaderboardPage === Math.max(1, Math.ceil(leaderboardTotalElements / leaderboardPageSize))}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        <FiChevronRight />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

@@ -1,7 +1,7 @@
 import api from "./api";
 
-export const getAllUsers = async () => {
-  const response = await api.get("/api/users");
+export const getAllUsers = async (page = 0, size = 10, sortOrder = "desc") => {
+  const response = await api.get(`/api/users?page=${page}&size=${size}&sort=createdTime,${sortOrder}`);
   return response.data;
 };
 
@@ -20,8 +20,8 @@ export const activateUser = async (id) => {
   return response.data;
 };
 
-export const getReferralLeaderboard = async () => {
-  const response = await api.get("/api/users/leaderboard");
+export const getReferralLeaderboard = async (page = 0, size = 10) => {
+  const response = await api.get(`/api/users/leaderboard?page=${page}&size=${size}`);
   return response.data;
 };
 
