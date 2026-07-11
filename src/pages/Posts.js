@@ -4,6 +4,7 @@ import {
   createPost,
   updatePost,
   deletePost,
+  getPostComments,
 } from "../services/postService";
 import { toast } from "react-toastify";
 import {
@@ -17,6 +18,7 @@ import {
   FiMessageSquare,
   FiList,
   FiHeart,
+  FiEye,
 } from "react-icons/fi";
 
 const emptyForm = {
@@ -31,7 +33,11 @@ const Posts = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [postComments, setPostComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -85,6 +91,32 @@ const Posts = () => {
     setForm(emptyForm);
     setImageFile(null);
     setImagePreview("");
+  };
+
+  const openDetails = async (post) => {
+    setSelectedPost(post);
+    setShowDetailsModal(true);
+    setCommentsLoading(true);
+    setPostComments([]);
+
+    try {
+      const response = await getPostComments(post.id);
+      const rawComments = response?.data?.content || response?.data || [];
+      setPostComments(Array.isArray(rawComments) ? rawComments : []);
+    } catch (error) {
+      console.error("Failed to load comments", error);
+      setPostComments([]);
+      toast.error("Failed to load post comments");
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedPost(null);
+    setPostComments([]);
+    setCommentsLoading(false);
   };
 
   const handleChange = (e) => {
@@ -226,13 +258,18 @@ const Posts = () => {
           <h1 className="text-2xl font-bold text-gray-800">Posts & Polls</h1>
           <p className="text-sm text-gray-500 mt-1">Manage community posts and interactive polls</p>
         </div>
-        <button
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-semibold hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200"
-          onClick={openCreate}
-        >
-          <FiPlus />
-          <span>Add Post</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="px-3 py-2 rounded-full bg-red-50 text-red-700 text-sm font-semibold">
+            Total posts: {posts.length}
+          </div>
+          <button
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-semibold hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200"
+            onClick={openCreate}
+          >
+            <FiPlus />
+            <span>Add Post</span>
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -331,16 +368,23 @@ const Posts = () => {
                 </div>
               </div>
 
-              <div className="mt-auto p-4 flex gap-2.5 pt-2 border-t border-gray-50">
+              <div className="mt-auto p-4 flex flex-wrap gap-2.5 pt-2 border-t border-gray-50">
                 <button
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors duration-150"
+                  className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors duration-150"
+                  onClick={() => openDetails(post)}
+                >
+                  <FiEye size={13} />
+                  <span>View Details</span>
+                </button>
+                <button
+                  className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors duration-150"
                   onClick={() => openEdit(post)}
                 >
                   <FiEdit2 size={13} />
                   <span>Edit</span>
                 </button>
                 <button
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors duration-150"
+                  className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors duration-150"
                   onClick={() => handleDelete(post.id)}
                 >
                   <FiTrash2 size={13} />
@@ -349,6 +393,122 @@ const Posts = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showDetailsModal && selectedPost && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4 sm:p-5 backdrop-blur-sm"
+          onClick={closeDetailsModal}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-150 sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Post Details</h2>
+                <p className="text-sm text-gray-500">Full payload and comments from the posts API</p>
+              </div>
+              <button
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-lg transition shrink-0"
+                onClick={closeDetailsModal}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  ["ID", selectedPost.id],
+                  ["Post Type", selectedPost.postType],
+                  ["Author", selectedPost.author],
+                  ["Subtitle", selectedPost.authorSubtitle || "—"],
+                  ["Likes", selectedPost.likesCount ?? 0],
+                  ["Comments", selectedPost.commentsCount ?? 0],
+                  ["Liked by me", selectedPost.likedByMe ? "Yes" : "No"],
+                  ["Created", selectedPost.createdTime || "—"],
+                  ["Updated", selectedPost.updatedTime || "—"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">{label}</p>
+                    <p className="mt-1 text-sm text-gray-800 break-words">{value ?? "—"}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="text-sm font-semibold text-gray-800">Description</p>
+                <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+                  {selectedPost.description || "—"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-slate-950 p-4 text-slate-100">
+                <p className="text-sm font-semibold text-slate-200">Full post payload</p>
+                <pre className="mt-3 overflow-x-auto text-xs leading-6 whitespace-pre-wrap">
+                  {JSON.stringify(selectedPost, null, 2)}
+                </pre>
+              </div>
+
+              {selectedPost.imageUrl && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-sm font-semibold text-gray-800">Image URL</p>
+                  <a href={selectedPost.imageUrl} target="_blank" rel="noreferrer" className="mt-2 block text-sm text-red-600 break-all">
+                    {selectedPost.imageUrl}
+                  </a>
+                </div>
+              )}
+
+              {selectedPost.options && selectedPost.options.length > 0 && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-800">Options</p>
+                  <ul className="mt-3 space-y-2">
+                    {selectedPost.options.map((option, index) => (
+                      <li key={index} className="text-sm text-gray-700">
+                        • {option.optionText || option.option || "Untitled option"}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-800">Comments</p>
+                  <span className="text-xs text-gray-500">{selectedPost.comments?.length || 0} available</span>
+                </div>
+                {commentsLoading ? (
+                  <div className="mt-3 text-sm text-gray-500">Loading comments...</div>
+                ) : postComments.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {postComments.map((comment, index) => (
+                      <li key={comment.id || index} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800">
+                              {comment.commenterName || comment.userName || "Unknown user"}
+                            </p>
+                            <p className="mt-1 text-gray-700">
+                              {comment.commentText || comment.text || comment.comment || JSON.stringify(comment)}
+                            </p>
+                          </div>
+                          {comment.createdTime && (
+                            <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                              {comment.createdTime}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-gray-500">No comments were returned for this post.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

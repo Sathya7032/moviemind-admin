@@ -32,11 +32,17 @@ export const createPost = async (payload, imageFile) => {
 
 export const getAllPosts = async () => {
   const response = await api.get("/api/posts");
+  console.log("getAllPosts response:", response.data); // Debugging line
   return response.data;
 };
 
 export const getPostById = async (id) => {
   const response = await api.get(`/api/posts/${id}`);
+  return response.data;
+};
+
+export const getPostComments = async (postId) => {
+  const response = await api.get(`/api/posts/${postId}/comments`);
   return response.data;
 };
 

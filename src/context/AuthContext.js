@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const accessToken = localStorage.getItem("accessToken");
+    console.log("Access Token:", accessToken); // Debugging line
     const email = localStorage.getItem("email");
     const fullName = localStorage.getItem("fullName");
     const role = localStorage.getItem("role");
