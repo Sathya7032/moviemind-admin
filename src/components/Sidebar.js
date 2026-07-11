@@ -7,6 +7,7 @@ import {
   FiLogOut,
   FiHelpCircle,
   FiBarChart2,
+  FiActivity,
   FiGrid,
   FiTrendingUp,
   FiGift,
@@ -16,6 +17,7 @@ import {
   FiAward,
   FiBell,
   FiImage,
+  FiVideo,
   FiTarget,
   FiMessageSquare,
   FiRotateCw,
@@ -83,9 +85,11 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/dashboard/rewards", icon: <FiAward />, label: "Rewards" },
     { path: "/dashboard/spins", icon: <FiRotateCw />, label: "Spin Wheel" },
     { path: "/dashboard/analytics", icon: <FiBarChart2 />, label: "Analytics" },
+    { path: "/dashboard/user-analytics", icon: <FiActivity />, label: "User Analytics" },
     { path: "/dashboard/daily-challenges", icon: <FiZap />, label: "Daily Challenges" },
     { path: "/dashboard/updates", icon: <FiBell />, label: "Updates" },
     { path: "/dashboard/banners", icon: <FiImage />, label: "Banners" },
+    { path: "/dashboard/homepage-videos", icon: <FiVideo />, label: "Homepage Videos" },
     { path: "/dashboard/posts", icon: <FiMessageSquare />, label: "Posts" },
   ];
 

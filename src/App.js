@@ -11,10 +11,12 @@ import CoinBattles from "./pages/CoinBattles";
 import CoinBattleDetail from "./pages/CoinBattleDetail";
 import Redeems from "./pages/Redeems";
 import Analytics from "./pages/Analytics";
+import UserAnalytics from "./pages/UserAnalytics";
 import DailyChallenge from "./pages/DailyChallenge";
 import Rewards from "./pages/Rewards";
 import Updates from "./pages/Updates";
 import Banners from "./pages/Banners";
+import HomepageVideos from "./pages/HomepageVideos";
 import Posts from "./pages/Posts";
 import Spins from "./pages/Spins";
 import DashboardLayout from "./components/DashboardLayout";
@@ -38,10 +40,12 @@ function App() {
             <Route path="coin-battles/:id" element={<CoinBattleDetail />} />
             <Route path="redeems" element={<Redeems />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="user-analytics" element={<UserAnalytics />} />
             <Route path="daily-challenges" element={<DailyChallenge />} />
             <Route path="rewards" element={<Rewards />} />
             <Route path="updates" element={<Updates />} />
             <Route path="banners" element={<Banners />} />
+            <Route path="homepage-videos" element={<HomepageVideos />} />
             <Route path="posts" element={<Posts />} />
             <Route path="spins" element={<Spins />} />
           </Route>

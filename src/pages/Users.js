@@ -225,7 +225,6 @@ const Users = () => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [pageSize, setPageSize] = useState(50);
   const [sortOrder, setSortOrder] = useState("desc");
-  const [totalElements, setTotalElements] = useState(0);
 
   /* ── status modal state ── */
   const [modalUser, setModalUser] = useState(null);
@@ -238,37 +237,13 @@ const Users = () => {
   const [leaderboardPageSize, setLeaderboardPageSize] = useState(50);
   const [leaderboardTotalElements, setLeaderboardTotalElements] = useState(0);
 
-  /* ── stats state ── */
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  /* ── fetch stats ── */
-  const fetchStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const res = await getAllUsers(0, 100000);
-      if (res.success && res.data?.content) {
-        const allUsers = res.data.content;
-        const total = res.data.totalElements || allUsers.length;
-        const active = allUsers.filter(u => u.status === "ACTIVE").length;
-        const inactive = total - active;
-        setStats({ total, active, inactive });
-      }
-    } catch (err) {
-      console.error("Failed to fetch user stats", err);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
   /* ── fetch users ── */
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAllUsers(page - 1, pageSize, sortOrder);
+      const res = await getAllUsers(0, 100000);
       if (res.success && res.data) {
         setUsers(res.data.content || []);
-        setTotalElements(res.data.totalElements || 0);
       } else {
         toast.error("Failed to load users");
       }
@@ -277,7 +252,7 @@ const Users = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, sortOrder]);
+  }, []);
 
   /* ── fetch leaderboard ── */
   const fetchLeaderboard = useCallback(async () => {
@@ -296,10 +271,6 @@ const Users = () => {
       setLeaderboardLoading(false);
     }
   }, [leaderboardPage, leaderboardPageSize]);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
 
   useEffect(() => {
     fetchUsers();
@@ -330,11 +301,6 @@ const Users = () => {
             u.id === modalUser.id ? { ...u, status: newStatus } : u
           )
         );
-        setStats((prev) => ({
-          ...prev,
-          active: newStatus === "ACTIVE" ? prev.active + 1 : prev.active - 1,
-          inactive: newStatus === "INACTIVE" ? prev.inactive + 1 : prev.inactive - 1,
-        }));
         setModalUser(null);
       }
     } catch {
@@ -343,6 +309,11 @@ const Users = () => {
       setSubmitting(false);
     }
   };
+
+  /* Stats derived directly from users state */
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.status === "ACTIVE").length;
+  const inactiveUsers = totalUsers - activeUsers;
 
   /* ── derived ── */
   const filtered = users.filter((u) => {
@@ -368,8 +339,16 @@ const Users = () => {
     return true;
   });
 
+  // Sort by createdTime: desc (newest first) or asc (oldest first)
+  const sorted = [...filtered].sort((a, b) => {
+    const dateA = new Date(a.createdTime || 0);
+    const dateB = new Date(b.createdTime || 0);
+    return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+  });
+
+  const totalElements = sorted.length;
   const totalPages = Math.max(1, Math.ceil(totalElements / pageSize));
-  const paginated = filtered;
+  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   /* ── reset to page 1 on search change ── */
   const handleSearch = (e) => {
@@ -414,21 +393,21 @@ const Users = () => {
         {[
           {
             label: "Total Users",
-            value: stats.total,
+            value: totalUsers,
             icon: <FiUsers />,
             color: "text-indigo-500",
             bg: "bg-indigo-50",
           },
           {
             label: "Active Users",
-            value: stats.active,
+            value: activeUsers,
             icon: <FiUser />,
             color: "text-emerald-500",
             bg: "bg-emerald-50",
           },
           {
             label: "Inactive Users",
-            value: stats.inactive,
+            value: inactiveUsers,
             icon: <FiUserX />,
             color: "text-red-500",
             bg: "bg-red-50",
@@ -444,7 +423,7 @@ const Users = () => {
               {s.icon}
             </div>
             <div>
-              <div className="text-xl font-bold text-gray-800">{statsLoading ? "—" : s.value}</div>
+              <div className="text-xl font-bold text-gray-800">{loading ? "—" : s.value}</div>
               <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
             </div>
           </div>
