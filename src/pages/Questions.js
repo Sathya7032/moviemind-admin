@@ -48,6 +48,80 @@ const emptyForm = {
   ],
 };
 
+const compressImage = (file, targetSizeInBytes = 1024 * 1024) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        let quality = 0.8;
+        let scale = 1.0;
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const attemptCompression = () => {
+          const currentWidth = Math.round(width * scale);
+          const currentHeight = Math.round(height * scale);
+
+          canvas.width = currentWidth;
+          canvas.height = currentHeight;
+
+          ctx.clearRect(0, 0, currentWidth, currentHeight);
+          ctx.drawImage(img, 0, 0, currentWidth, currentHeight);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Canvas to Blob conversion failed"));
+                return;
+              }
+
+              if (blob.size <= targetSizeInBytes) {
+                const compressedFile = new File([blob], file.name, {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                if (quality > 0.3) {
+                  quality -= 0.15;
+                  attemptCompression();
+                } else if (scale > 0.3) {
+                  scale -= 0.2;
+                  quality = 0.7;
+                  attemptCompression();
+                } else {
+                  const compressedFile = new File([blob], file.name, {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                }
+              }
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+
+        const maxLimit = 1920;
+        if (width > maxLimit || height > maxLimit) {
+          scale = maxLimit / Math.max(width, height);
+        }
+
+        attemptCompression();
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 const Questions = () => {
   const [questions, setQuestions] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -279,22 +353,49 @@ const Questions = () => {
     }
   };
 
-  const handleFileSelect = (file) => {
+  const handleFileSelect = async (file) => {
     if (!file) return;
-    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+
+    const targetSize = 1024 * 1024; // 1MB
     console.log(
       "Selected file size:",
       (file.size / 1024 / 1024).toFixed(2),
       "MB",
     );
-    if (file.size > maxSize) {
-      toast.error(
-        `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 5MB allowed.`,
-      );
-      return;
+
+    if (file.size > targetSize) {
+      const toastId = toast.info("Compressing image to under 1MB...", { autoClose: false });
+      try {
+        const compressedFile = await compressImage(file, targetSize);
+        console.log(
+          "Compressed file size:",
+          (compressedFile.size / 1024 / 1024).toFixed(2),
+          "MB",
+        );
+        setImageFile(compressedFile);
+        setImagePreview(URL.createObjectURL(compressedFile));
+        toast.dismiss(toastId);
+        toast.success(`Image compressed successfully to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+      } catch (err) {
+        console.error("Compression error:", err);
+        toast.dismiss(toastId);
+        toast.error("Failed to compress image. Using original image.");
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 5MB allowed.`);
+          return;
+        }
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+      }
+    } else {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
   };
 
   const activeFilterCount = [
