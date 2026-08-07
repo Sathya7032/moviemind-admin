@@ -47,3 +47,10 @@ export const deleteQuestion = async (id) => {
   const response = await api.delete(`/api/questions/${id}`);
   return response.data;
 };
+
+// Add many questions in one call. JSON body: { questions: [ {...}, {...} ] }
+// Each item uses a plain `imageUrl` string instead of a file upload.
+export const addQuestionsBulk = async (questions) => {
+  const response = await api.post("/api/questions/bulk", { questions });
+  return response.data;
+};

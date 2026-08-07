@@ -4,6 +4,7 @@ import {
   addQuestion,
   updateQuestion,
   deleteQuestion,
+  addQuestionsBulk,
 } from "../services/questionService";
 import { getAllCategories } from "../services/categoryService";
 import { toast } from "react-toastify";
@@ -20,10 +21,22 @@ import {
   FiUpload,
   FiImage,
   FiZap,
+  FiLayers,
+  FiKey,
+  FiEye,
+  FiEyeOff,
+  FiCpu,
+  FiBookOpen,
 } from "react-icons/fi";
-import { 
+import {
   generateQuestion
 } from "../services/aiService";
+import {
+  generateQuestionsFromContent,
+  getSavedApiKey,
+  saveApiKey,
+  clearSavedApiKey,
+} from "../services/localAiService";
 
 const emptyOption = { optionText: "", correct: false };
 
@@ -146,6 +159,25 @@ const Questions = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAiGenerated, setIsAiGenerated] = useState(false);
   const [sortOrder, setSortOrder] = useState("asc");
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkList, setBulkList] = useState([]);
+  const [bulkForm, setBulkForm] = useState(emptyForm);
+  const [bulkEditingIndex, setBulkEditingIndex] = useState(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  // AI "generate from content" — runs entirely client-side against Gemini,
+  // never touches our backend. Results get queued into bulkList for review.
+  const [showAIContentModal, setShowAIContentModal] = useState(false);
+  const [aiContentApiKey, setAiContentApiKey] = useState("");
+  const [aiContentShowKey, setAiContentShowKey] = useState(false);
+  const [aiContentRememberKey, setAiContentRememberKey] = useState(false);
+  const [aiContentCategory, setAiContentCategory] = useState("");
+  const [aiContentGameMode, setAiContentGameMode] = useState("TAGLINE");
+  const [aiContentDifficulty, setAiContentDifficulty] = useState("medium");
+  const [aiContentQuestionCount, setAiContentQuestionCount] = useState(5);
+  const [aiContentText, setAiContentText] = useState("");
+  const [aiContentCustomPrompt, setAiContentCustomPrompt] = useState("");
+  const [aiContentGenerating, setAiContentGenerating] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -398,6 +430,201 @@ const Questions = () => {
     }
   };
 
+  const openBulkModal = () => {
+    setBulkList([]);
+    setBulkForm({ ...emptyForm, categoryId: filterCategory || "" });
+    setBulkEditingIndex(null);
+    setShowBulkModal(true);
+  };
+
+  const closeBulkModal = () => {
+    setShowBulkModal(false);
+    setBulkList([]);
+    setBulkForm(emptyForm);
+    setBulkEditingIndex(null);
+  };
+
+  const handleBulkChange = (e) => {
+    const { name, value, type } = e.target;
+    setBulkForm((prev) => ({
+      ...prev,
+      [name]: type === "number" ? Number(value) : value,
+    }));
+  };
+
+  const handleBulkOptionChange = (index, field, value) => {
+    setBulkForm((prev) => {
+      const options = [...prev.options];
+      options[index] = { ...options[index], [field]: value };
+      return { ...prev, options };
+    });
+  };
+
+  const addBulkOption = () => {
+    setBulkForm((prev) => ({
+      ...prev,
+      options: [...prev.options, { ...emptyOption }],
+    }));
+  };
+
+  const removeBulkOption = (index) => {
+    setBulkForm((prev) => ({
+      ...prev,
+      options: prev.options.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Adds the current form to the list (or saves edits to an existing entry),
+  // then resets the form for the next question — keeping category/format/mode
+  // and bumping the question number so entry stays fast.
+  const addQuestionToBulkList = () => {
+    if (!bulkForm.movieName.trim() || !bulkForm.questionText.trim()) {
+      toast.error("Movie name and question text are required");
+      return;
+    }
+    if (!bulkForm.categoryId) {
+      toast.error("Please select a category");
+      return;
+    }
+
+    const item = {
+      ...bulkForm,
+      categoryId: Number(bulkForm.categoryId),
+      options: bulkForm.options.filter((o) => o.optionText.trim()),
+    };
+
+    if (bulkEditingIndex !== null) {
+      setBulkList((prev) => prev.map((q, i) => (i === bulkEditingIndex ? item : q)));
+      toast.success("Question updated in list");
+    } else {
+      setBulkList((prev) => [...prev, item]);
+      toast.success("Question added to list");
+    }
+
+    setBulkForm({
+      ...emptyForm,
+      categoryId: bulkForm.categoryId,
+      questionType: bulkForm.questionType,
+      gameMode: bulkForm.gameMode,
+      rewardCoins: bulkForm.rewardCoins,
+      questionNumber: (Number(bulkForm.questionNumber) || 0) + 1,
+    });
+    setBulkEditingIndex(null);
+  };
+
+  const editBulkListItem = (index) => {
+    setBulkForm({
+      ...emptyForm,
+      ...bulkList[index],
+      options: bulkList[index].options?.length
+        ? bulkList[index].options
+        : [emptyOption, emptyOption, emptyOption, emptyOption],
+    });
+    setBulkEditingIndex(index);
+  };
+
+  const removeBulkListItem = (index) => {
+    setBulkList((prev) => prev.filter((_, i) => i !== index));
+    if (bulkEditingIndex === index) {
+      setBulkForm({ ...emptyForm, categoryId: filterCategory || "" });
+      setBulkEditingIndex(null);
+    }
+  };
+
+  const submitBulkList = async () => {
+    if (bulkList.length === 0) {
+      toast.error("Add at least one question to the list first");
+      return;
+    }
+
+    setBulkSubmitting(true);
+    try {
+      const res = await addQuestionsBulk(bulkList);
+      if (res.success) {
+        toast.success(res.message || `${bulkList.length} questions created successfully`);
+        closeBulkModal();
+        fetchData();
+      } else {
+        toast.error(res.message || "Failed to add questions");
+      }
+    } catch (err) {
+      const serverMsg = err.response?.data?.message || err.message;
+      toast.error(serverMsg || "Failed to add questions");
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
+  const openAIContentModal = () => {
+    setAiContentApiKey(getSavedApiKey());
+    setAiContentCategory(filterCategory || "");
+    setAiContentText("");
+    setAiContentCustomPrompt("");
+    setAiContentQuestionCount(5);
+    setShowAIContentModal(true);
+  };
+
+  const closeAIContentModal = () => {
+    if (aiContentGenerating) return;
+    setShowAIContentModal(false);
+  };
+
+  const handleGenerateFromContent = async () => {
+    if (!aiContentCategory) {
+      toast.error("Please select a category");
+      return;
+    }
+    if (!aiContentText.trim()) {
+      toast.error("Paste some movie content to generate questions from");
+      return;
+    }
+
+    const category = categories.find((c) => String(c.id) === String(aiContentCategory));
+
+    // Continue numbering after whatever's already queued for this category.
+    const queuedForCategory = bulkList.filter(
+      (q) => String(q.categoryId) === String(aiContentCategory)
+    );
+    const startingQuestionNumber =
+      queuedForCategory.length > 0
+        ? Math.max(...queuedForCategory.map((q) => Number(q.questionNumber) || 0)) + 1
+        : 1;
+
+    setAiContentGenerating(true);
+    try {
+      const generated = await generateQuestionsFromContent({
+        apiKey: aiContentApiKey,
+        content: aiContentText,
+        categoryName: category?.name || "",
+        gameMode: aiContentGameMode,
+        difficulty: aiContentDifficulty,
+        questionCount: aiContentQuestionCount,
+        customPrompt: aiContentCustomPrompt,
+        startingQuestionNumber,
+      });
+
+      if (aiContentRememberKey) {
+        saveApiKey(aiContentApiKey);
+      } else {
+        clearSavedApiKey();
+      }
+
+      const withCategory = generated.map((q) => ({
+        ...q,
+        categoryId: Number(aiContentCategory),
+      }));
+
+      setBulkList((prev) => [...prev, ...withCategory]);
+      toast.success(`Generated ${withCategory.length} question${withCategory.length === 1 ? "" : "s"} — review them in the queue`);
+      setShowAIContentModal(false);
+      setShowBulkModal(true);
+    } catch (err) {
+      toast.error(err.message || "Failed to generate questions");
+    } finally {
+      setAiContentGenerating(false);
+    }
+  };
+
   const activeFilterCount = [
     filterCategory,
     filterGameMode,
@@ -450,6 +677,20 @@ const Questions = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:-translate-y-0.5 hover:shadow-lg hover:border-gray-300 transition"
+            onClick={openBulkModal}
+          >
+            <FiLayers />
+            <span>Bulk Add</span>
+          </button>
+          <button
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/30 transition"
+            onClick={openAIContentModal}
+          >
+            <FiCpu />
+            <span>Generate from Content (AI)</span>
+          </button>
           <button
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition"
             onClick={() => setShowAIModal(true)}
@@ -1158,6 +1399,498 @@ const Questions = () => {
                   * This will generate 1 question for you to preview and save.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Bulk Add Modal */}
+      {showBulkModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[250] p-5"
+          onClick={() => !bulkSubmitting && closeBulkModal()}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-6xl max-h-[92vh] shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-gray-800">
+                <FiLayers className="text-xl text-indigo-600" />
+                <h2 className="text-lg font-bold">Bulk Add Questions</h2>
+                <span className="ml-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-600">
+                  {bulkList.length} queued
+                </span>
+              </div>
+              <button
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 text-lg transition disabled:opacity-40"
+                onClick={closeBulkModal}
+                disabled={bulkSubmitting}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              {/* Left: form for the question currently being entered */}
+              <div className="flex-1 overflow-y-auto p-6 border-b lg:border-b-0 lg:border-r border-gray-100 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-gray-700">
+                    {bulkEditingIndex !== null ? `Editing Question #${bulkEditingIndex + 1} in list` : "New Question"}
+                  </h3>
+                  {bulkEditingIndex !== null && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBulkForm({ ...emptyForm, categoryId: filterCategory || "" });
+                        setBulkEditingIndex(null);
+                      }}
+                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </div>
+
+                {/* Mode bar */}
+                <div className="bg-gray-50 rounded-2xl p-4 flex flex-wrap gap-6 border border-gray-100">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Question Format</label>
+                    <div className="flex p-1 bg-white border border-gray-200 rounded-full">
+                      {["MCQ", "FILL_BLANK"].map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                            bulkForm.questionType === t ? "bg-red-600 text-white shadow-md shadow-red-200" : "text-gray-500 hover:text-red-600"
+                          }`}
+                          onClick={() => setBulkForm((p) => ({ ...p, questionType: t }))}
+                        >
+                          {t === "MCQ" ? "Multiple Choice" : "Fill Blank"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Game Variant</label>
+                    <div className="flex p-1 bg-white border border-gray-200 rounded-full gap-1">
+                      {["TAGLINE", "DIALOGUE", "SCENE", "IMAGE"].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${
+                            bulkForm.gameMode === m ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "text-gray-500 hover:text-indigo-600"
+                          }`}
+                          onClick={() => setBulkForm((p) => ({ ...p, gameMode: m }))}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Movie / Sequence Name</label>
+                    <input
+                      name="movieName"
+                      value={bulkForm.movieName}
+                      onChange={handleBulkChange}
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-500/5 outline-none transition-all text-sm font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Category</label>
+                    <select
+                      name="categoryId"
+                      value={bulkForm.categoryId}
+                      onChange={handleBulkChange}
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-500/5 outline-none transition-all text-sm font-medium"
+                    >
+                      <option value="">Choose Category...</option>
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-600 ml-1">Question Content</label>
+                  <textarea
+                    rows={3}
+                    name="questionText"
+                    value={bulkForm.questionText}
+                    onChange={handleBulkChange}
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-500/5 outline-none transition-all text-sm resize-none"
+                  />
+                </div>
+
+                {/* Context fields based on mode */}
+                {bulkForm.gameMode === "TAGLINE" && (
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-amber-600">Tagline Context</label>
+                    <input name="tagline" value={bulkForm.tagline} onChange={handleBulkChange} className="w-full px-4 py-2 bg-white border border-amber-200 rounded-lg outline-none text-sm" />
+                  </div>
+                )}
+                {bulkForm.gameMode === "DIALOGUE" && (
+                  <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-100 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-cyan-600">Dialogue Context</label>
+                    <textarea name="dialogue" value={bulkForm.dialogue} onChange={handleBulkChange} className="w-full px-4 py-2 bg-white border border-cyan-200 rounded-lg outline-none text-sm resize-none" />
+                  </div>
+                )}
+                {bulkForm.gameMode === "SCENE" && (
+                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-emerald-600">Scene Description</label>
+                    <textarea rows={2} name="sceneDescription" value={bulkForm.sceneDescription} onChange={handleBulkChange} className="w-full px-4 py-2 bg-white border-emerald-200 rounded-lg outline-none text-sm resize-none" />
+                  </div>
+                )}
+                {bulkForm.gameMode === "IMAGE" && (
+                  <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-purple-600">Image URL</label>
+                    <input
+                      name="imageUrl"
+                      value={bulkForm.imageUrl}
+                      onChange={handleBulkChange}
+                      placeholder="https://..."
+                      className="w-full px-4 py-2 bg-white border border-purple-200 rounded-lg outline-none text-sm"
+                    />
+                    <p className="text-[10px] text-purple-400">
+                      Bulk add is JSON-only on the server side — paste an image URL rather than uploading a file.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between ml-1">
+                    <label className="text-xs font-bold text-gray-600">Correct Answer</label>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-tighter">Required for validation</span>
+                  </div>
+                  <input name="correctAnswer" value={bulkForm.correctAnswer} onChange={handleBulkChange} className="w-full px-4 py-3 bg-emerald-50/30 border border-emerald-100 rounded-xl focus:border-emerald-500 outline-none transition-all text-sm font-bold text-emerald-700" />
+                </div>
+
+                {bulkForm.questionType === "MCQ" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-xs font-bold text-gray-600">Response Options</label>
+                      <button type="button" onClick={addBulkOption} className="text-[10px] font-bold text-indigo-600 hover:underline">+ ADD CUSTOM OPTION</button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {bulkForm.options.map((opt, i) => (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${opt.correct ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-100 hover:border-gray-200"}`}>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black ${opt.correct ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-500"}`}>{String.fromCharCode(65 + i)}</span>
+                          <input value={opt.optionText} onChange={(e) => handleBulkOptionChange(i, "optionText", e.target.value)} className="flex-1 bg-transparent border-none outline-none text-sm font-medium" />
+                          <button type="button" onClick={() => handleBulkOptionChange(i, "correct", !opt.correct)} className={`text-[10px] font-bold px-3 py-1 rounded-full ${opt.correct ? "bg-emerald-500 text-white" : "text-gray-400 hover:text-emerald-600"}`}>{opt.correct ? "CORRECT" : "SET CORRECT"}</button>
+                          <button type="button" onClick={() => removeBulkOption(i)} className="text-gray-300 hover:text-red-500"><FiX size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Reward Coins</label>
+                    <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <span className="px-3 py-2 bg-gray-50 border-r border-gray-100 flex items-center">🪙</span>
+                      <input
+                        type="number"
+                        name="rewardCoins"
+                        value={bulkForm.rewardCoins}
+                        onChange={handleBulkChange}
+                        className="w-full px-3 py-2 text-sm outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Position</label>
+                    <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <span className="px-3 py-2 bg-gray-50 border-r border-gray-100 flex items-center text-[10px] font-bold">#</span>
+                      <input
+                        type="text"
+                        name="questionNumber"
+                        value={bulkForm.questionNumber ?? ""}
+                        onChange={handleBulkChange}
+                        className="w-full px-3 py-2 text-sm outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addQuestionToBulkList}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition active:scale-95"
+                >
+                  <FiPlus />
+                  {bulkEditingIndex !== null ? "Save Changes to List" : "Add New Question"}
+                </button>
+              </div>
+
+              {/* Right: running list of questions queued for submission */}
+              <div className="w-full lg:w-96 shrink-0 overflow-y-auto p-6 bg-gray-50 space-y-3">
+                <h3 className="text-sm font-bold text-gray-700">Queued Questions ({bulkList.length})</h3>
+                {bulkList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 text-gray-400 text-center gap-2">
+                    <FiLayers className="text-3xl text-gray-200" />
+                    <span className="text-xs">Fill the form and click "Add New Question" to queue it here.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {bulkList.map((q, i) => (
+                      <div
+                        key={i}
+                        className={`bg-white rounded-xl border p-3.5 ${bulkEditingIndex === i ? "border-indigo-400 ring-2 ring-indigo-100" : "border-gray-100"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-gray-400">#{i + 1}</div>
+                            <div className="text-sm font-semibold text-gray-800 truncate">{q.movieName || "Untitled"}</div>
+                            <div className="text-xs text-gray-500 truncate">{q.questionText}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-600">{q.questionType}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700">{q.gameMode}</span>
+                        </div>
+                        <div className="flex gap-2 mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => editBulkListItem(i)}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[11px] font-semibold hover:bg-indigo-100 transition"
+                          >
+                            <FiEdit2 size={11} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeBulkListItem(i)}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-500 rounded-lg text-[11px] font-semibold hover:bg-red-100 transition"
+                          >
+                            <FiX size={11} /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                Submitting is atomic — if any queued question is invalid, none are saved.
+              </span>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeBulkModal}
+                  disabled={bulkSubmitting}
+                  className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitBulkList}
+                  disabled={bulkSubmitting || bulkList.length === 0}
+                  className="px-8 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition active:scale-95 disabled:opacity-50"
+                >
+                  {bulkSubmitting ? "Submitting…" : `Submit ${bulkList.length || ""} Question${bulkList.length === 1 ? "" : "s"}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* AI Generate-from-Content Modal — runs entirely client-side, never hits our backend */}
+      {showAIContentModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[260] p-5"
+          onClick={closeAIContentModal}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50">
+              <div className="flex items-center gap-2 text-indigo-700">
+                <FiCpu className="text-xl" />
+                <h2 className="text-lg font-bold">Generate Questions from Content</h2>
+              </div>
+              {!aiContentGenerating && (
+                <button onClick={closeAIContentModal} className="text-gray-400 hover:text-gray-600">
+                  <FiX size={20} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-indigo-50 text-indigo-700 text-xs">
+                <FiKey className="shrink-0 mt-0.5" />
+                <span>
+                  This calls the Gemini API directly from your browser using the key below. Your key and the pasted
+                  content are never sent to our backend.
+                </span>
+              </div>
+
+              {/* API key */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">Your Gemini API Key</label>
+                <div className="relative">
+                  <FiKey className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type={aiContentShowKey ? "text" : "password"}
+                    value={aiContentApiKey}
+                    onChange={(e) => setAiContentApiKey(e.target.value)}
+                    disabled={aiContentGenerating}
+                    placeholder="AIza..."
+                    className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition disabled:bg-gray-50 text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAiContentShowKey((v) => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {aiContentShowKey ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={aiContentRememberKey}
+                    onChange={(e) => setAiContentRememberKey(e.target.checked)}
+                    disabled={aiContentGenerating}
+                  />
+                  Remember this key on this device (stored only in this browser's local storage)
+                </label>
+              </div>
+
+              {/* Category + Game mode */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-gray-700">Category</label>
+                  <select
+                    value={aiContentCategory}
+                    onChange={(e) => setAiContentCategory(e.target.value)}
+                    disabled={aiContentGenerating}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition disabled:bg-gray-50 text-sm"
+                  >
+                    <option value="">Choose category...</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-gray-700">Questions to Generate</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="25"
+                    value={aiContentQuestionCount}
+                    onChange={(e) => setAiContentQuestionCount(e.target.value)}
+                    disabled={aiContentGenerating}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition disabled:bg-gray-50 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">Game Mode</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {["TAGLINE", "DIALOGUE", "SCENE", "IMAGE"].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={aiContentGenerating}
+                      className={`px-3 py-2 rounded-xl border text-xs font-semibold transition ${
+                        aiContentGameMode === m
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "border-gray-200 text-gray-600 hover:border-indigo-500 hover:text-indigo-600"
+                      }`}
+                      onClick={() => setAiContentGameMode(m)}
+                    >
+                      {m.charAt(0) + m.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">Difficulty</label>
+                <div className="flex gap-2 p-1 bg-gray-50 rounded-xl border border-gray-100">
+                  {["easy", "medium", "hard"].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      disabled={aiContentGenerating}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                        aiContentDifficulty === d
+                          ? d === "easy" ? "bg-green-600 text-white shadow-sm" :
+                            d === "medium" ? "bg-amber-500 text-white shadow-sm" :
+                            "bg-red-600 text-white shadow-sm"
+                          : "text-gray-500 hover:bg-white hover:text-gray-700"
+                      }`}
+                      onClick={() => setAiContentDifficulty(d)}
+                    >
+                      {d.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <FiBookOpen /> Movie Content / Encyclopedia Text
+                </label>
+                <textarea
+                  value={aiContentText}
+                  onChange={(e) => setAiContentText(e.target.value)}
+                  disabled={aiContentGenerating}
+                  placeholder="Paste the movie's plot summary, cast, trivia, wiki entry, etc. here — questions will be grounded in this content."
+                  rows={8}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition disabled:bg-gray-50 resize-none text-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  Custom Prompt <span className="text-gray-400 font-normal text-xs">(Optional)</span>
+                </label>
+                <textarea
+                  value={aiContentCustomPrompt}
+                  onChange={(e) => setAiContentCustomPrompt(e.target.value)}
+                  disabled={aiContentGenerating}
+                  placeholder="e.g. Focus on the songs and music director, or 'make 2 of them hard trick questions'"
+                  rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition disabled:bg-gray-50 resize-none text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={handleGenerateFromContent}
+                disabled={aiContentGenerating || !aiContentCategory || !aiContentText.trim()}
+                className={`w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-3 ${
+                  aiContentGenerating || !aiContentCategory || !aiContentText.trim()
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:scale-[1.02] active:scale-[0.98]"
+                }`}
+              >
+                {aiContentGenerating ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Generating Questions...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCpu />
+                    <span>Generate & Queue Questions</span>
+                  </>
+                )}
+              </button>
+              <p className="text-center text-[11px] text-gray-400 mt-3 italic">
+                * Generated questions are added to the Bulk Add queue for you to review and edit before saving.
+              </p>
             </div>
           </div>
         </div>

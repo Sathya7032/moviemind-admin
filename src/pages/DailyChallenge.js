@@ -7,6 +7,8 @@ import {
   updateEvent,
   deleteEvent,
   getLeaderboard,
+  getCorrectCountsForEvent,
+  updateCorrectCount,
 } from "../services/dailyChallengeService";
 import { getAllCategories } from "../services/categoryService";
 import { toast } from "react-toastify";
@@ -28,6 +30,9 @@ import {
   FiUsers,
   FiClock,
   FiLoader,
+  FiUserCheck,
+  FiCheck,
+  FiSave,
 } from "react-icons/fi";
 
 /* ─────────────── helpers ─────────────── */
@@ -955,6 +960,207 @@ const LeaderboardModal = ({ event, onClose }) => {
   );
 };
 
+/* ─────────────── Correct Answers Count Modal (admin get/edit) ─────────────── */
+
+const STATUS_LABEL = {
+  PENDING: "Pending",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+};
+
+const ParticipantStatusBadge = ({ status }) => {
+  const styles = {
+    COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    IN_PROGRESS: "bg-amber-50 text-amber-700 border-amber-200",
+    PENDING: "bg-gray-100 text-gray-500 border-gray-200",
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${styles[status] ?? styles.PENDING}`}>
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+};
+
+const CorrectCountsModal = ({ event, onClose }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [savingId, setSavingId] = useState(null);
+
+  const fetchRows = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getCorrectCountsForEvent(event.id);
+      setRows(res.data ?? []);
+    } catch (err) {
+      setError(err?.response?.data?.message ?? "Failed to load participants");
+    } finally {
+      setLoading(false);
+    }
+  }, [event.id]);
+
+  useEffect(() => { fetchRows(); }, [fetchRows]);
+
+  const startEdit = (row) => {
+    setEditingId(row.challengeId);
+    setEditValue(String(row.correctCount ?? 0));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+  };
+
+  const saveEdit = async (row) => {
+    const value = Number(editValue);
+    if (!Number.isInteger(value) || value < 0 || value > row.totalQuestions) {
+      toast.error(`Enter a whole number between 0 and ${row.totalQuestions}`);
+      return;
+    }
+    setSavingId(row.challengeId);
+    try {
+      const res = await updateCorrectCount(row.challengeId, value);
+      const updated = res.data ?? res;
+      setRows((prev) =>
+        prev.map((r) => (r.challengeId === row.challengeId ? { ...r, ...updated } : r))
+      );
+      toast.success("Correct answers count updated");
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Failed to update correct count");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-600 shrink-0" />
+
+        {/* header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <FiUserCheck className="text-emerald-500 text-lg" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-800">Correct Answers Count</h2>
+              <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">{event.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition">
+            <FiX />
+          </button>
+        </div>
+
+        {/* body */}
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+              <FiLoader className="text-3xl animate-spin" />
+              <span className="text-sm">Loading participants…</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-2 text-red-400">
+              <FiAlertTriangle className="text-3xl" />
+              <span className="text-sm">{error}</span>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-gray-400 gap-2">
+              <FiUsers className="text-4xl text-gray-200" />
+              <span className="text-sm">No one has participated in this event yet.</span>
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden border border-gray-100">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Correct / Total</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {rows.map((row) => (
+                    <tr key={row.challengeId} className="hover:bg-gray-50/60 transition">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-800 truncate max-w-[160px]">{row.userName}</div>
+                        <div className="text-[11px] text-gray-400">ID #{row.userId}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ParticipantStatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {editingId === row.challengeId ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max={row.totalQuestions}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-16 px-2 py-1 text-center text-sm border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="font-semibold text-gray-700">
+                            {row.correctCount ?? 0}
+                          </span>
+                        )}
+                        <span className="text-gray-400"> / {row.totalQuestions}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {editingId === row.challengeId ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              onClick={() => saveEdit(row)}
+                              disabled={savingId === row.challengeId}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition disabled:opacity-50"
+                            >
+                              {savingId === row.challengeId
+                                ? <FiRefreshCw className="animate-spin" />
+                                : <FiSave />}
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              disabled={savingId === row.challengeId}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50"
+                            >
+                              <FiX /> Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => startEdit(row)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
+                          >
+                            <FiEdit2 /> Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 px-6 py-3.5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+          <span className="inline-flex items-center gap-1.5"><FiCheck className="text-emerald-500" /> Edits apply immediately and cannot be undone.</span>
+          <span>{rows.length} participant{rows.length === 1 ? "" : "s"}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─────────────── Main Page ─────────────── */
 
 const DailyChallenge = () => {
@@ -970,6 +1176,7 @@ const DailyChallenge = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [leaderboardTarget, setLeaderboardTarget] = useState(null);
+  const [correctCountsTarget, setCorrectCountsTarget] = useState(null);
   const [search, setSearch]             = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
 
@@ -1118,6 +1325,12 @@ const DailyChallenge = () => {
         <LeaderboardModal
           event={leaderboardTarget}
           onClose={() => setLeaderboardTarget(null)}
+        />
+      )}
+      {correctCountsTarget && (
+        <CorrectCountsModal
+          event={correctCountsTarget}
+          onClose={() => setCorrectCountsTarget(null)}
         />
       )}
 
@@ -1394,6 +1607,12 @@ const DailyChallenge = () => {
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
                           >
                             <FiUsers /> Leaderboard
+                          </button>
+                          <button
+                            onClick={() => setCorrectCountsTarget(event)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition"
+                          >
+                            <FiUserCheck /> Correct Counts
                           </button>
                           <button
                             onClick={() => setEditTarget(event)}

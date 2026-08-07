@@ -34,3 +34,27 @@ export const getLeaderboard = async (eventId) => {
   const response = await api.get(`/api/daily-challenges/${eventId}/leaderboard`);
   return response.data;
 };
+
+// ── Admin: correct-answers count management ─────────────────────────────────
+
+export const getCorrectCountsForEvent = async (eventId) => {
+  const response = await api.get(
+    `/api/admin/daily-challenges/${eventId}/participants/correct-counts`
+  );
+  return response.data;
+};
+
+export const getCorrectCount = async (challengeId) => {
+  const response = await api.get(
+    `/api/admin/daily-challenges/participants/${challengeId}/correct-count`
+  );
+  return response.data;
+};
+
+export const updateCorrectCount = async (challengeId, correctCount) => {
+  const response = await api.patch(
+    `/api/admin/daily-challenges/participants/${challengeId}/correct-count`,
+    { correctCount }
+  );
+  return response.data;
+};
