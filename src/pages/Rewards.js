@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import {
   getAllRewards,
   createReward,
@@ -101,7 +102,13 @@ const DeleteModal = ({ reward, userName, onConfirm, onCancel, submitting }) => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Assigned To</span>
-              <span className="font-semibold text-gray-800">{userName}</span>
+              {reward.userId ? (
+                <Link to={`/dashboard/users/${reward.userId}`} className="font-semibold text-gray-800 hover:text-red-600 hover:underline">
+                  {userName}
+                </Link>
+              ) : (
+                <span className="font-semibold text-gray-800">{userName}</span>
+              )}
             </div>
           </div>
           <div className="mt-6 flex items-center gap-3 justify-end">
@@ -151,7 +158,13 @@ const RedeemModal = ({ reward, userName, onConfirm, onCancel, submitting }) => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Assigned To</span>
-              <span className="font-semibold text-gray-800">{userName}</span>
+              {reward.userId ? (
+                <Link to={`/dashboard/users/${reward.userId}`} className="font-semibold text-gray-800 hover:text-red-600 hover:underline">
+                  {userName}
+                </Link>
+              ) : (
+                <span className="font-semibold text-gray-800">{userName}</span>
+              )}
             </div>
           </div>
           <div className="mt-4 flex items-start gap-2.5 p-3 rounded-lg text-xs bg-amber-50 text-amber-700">
@@ -548,8 +561,19 @@ const AllRewardsTable = ({ rewards, usersMap, loading, onEdit, onRedeem, onDelet
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
-                        
-                          <span className="text-sm font-medium text-gray-800 whitespace-nowrap">{reward.name.toUpperCase()}</span>
+                          {reward.userId ? (
+                            <Link
+                              to={`/dashboard/users/${reward.userId}`}
+                              className="text-sm font-semibold text-gray-800 hover:text-red-600 hover:underline transition underline-offset-2 whitespace-nowrap"
+                              title={`View user profile #${reward.userId}`}
+                            >
+                              {(reward.name || usersMap[reward.userId] || reward.userName || `User #${reward.userId}`).toUpperCase()}
+                            </Link>
+                          ) : (
+                            <span className="text-sm font-medium text-gray-800 whitespace-nowrap">
+                              {(reward.name || "—").toUpperCase()}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5">

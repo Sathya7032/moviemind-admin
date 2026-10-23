@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { getFullLeaderboard } from "../services/leaderboardService";
 import { toast } from "react-toastify";
 import { FiRefreshCw, FiSearch, FiTrendingUp, FiUsers, FiAward } from "react-icons/fi";
@@ -115,14 +116,20 @@ const Leaderboard = () => {
                 {/* crown / medal */}
                 <div className="text-3xl mb-2">{MEDAL[entry.rank]}</div>
 
-                {/* avatar ring */}
-                <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br ${rankBg(entry.rank)} flex items-center justify-center text-white text-base sm:text-lg font-extrabold shadow-lg ring-4 ring-white/20 mb-3`}>
-                  {entry.username?.slice(0, 2).toUpperCase()}
-                </div>
+                {/* avatar ring & username */}
+                <Link
+                  to={`/dashboard/users/${entry.userId}`}
+                  className="flex flex-col items-center group cursor-pointer"
+                  title={`View profile of ${entry.username}`}
+                >
+                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br ${rankBg(entry.rank)} flex items-center justify-center text-white text-base sm:text-lg font-extrabold shadow-lg ring-4 ring-white/20 mb-3 group-hover:scale-110 transition-transform`}>
+                    {entry.username?.slice(0, 2).toUpperCase()}
+                  </div>
 
-                <span className="text-white text-xs sm:text-sm font-bold truncate max-w-[70px] sm:max-w-[90px] text-center leading-tight">
-                  {entry.username}
-                </span>
+                  <span className="text-white text-xs sm:text-sm font-bold truncate max-w-[70px] sm:max-w-[90px] text-center leading-tight group-hover:underline">
+                    {entry.username}
+                  </span>
+                </Link>
                 <span className="text-indigo-200 text-xs mt-0.5">
                   {entry.totalCoins.toLocaleString()} 🪙
                 </span>
@@ -209,21 +216,32 @@ const Leaderboard = () => {
 
                       {/* player */}
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
+                        <Link
+                          to={`/dashboard/users/${entry.userId}`}
+                          className="flex items-center gap-3 group"
+                          title={`View profile of ${entry.username}`}
+                        >
                           <Avatar name={entry.username} />
                           <div>
-                            <div className={`text-sm font-semibold leading-tight ${isTop3 ? "text-indigo-700" : "text-gray-800"}`}>
+                            <div className={`text-sm font-semibold leading-tight group-hover:underline underline-offset-2 ${isTop3 ? "text-indigo-700 group-hover:text-indigo-900" : "text-gray-800 group-hover:text-red-600"}`}>
                               {entry.username}
                             </div>
                             {entry.rank === 1 && (
                               <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">⚡ Top Player</span>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </td>
 
                       {/* user id */}
-                      <td className="px-5 py-3.5 text-xs text-gray-400 font-mono">#{entry.userId}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-400 font-mono">
+                        <Link
+                          to={`/dashboard/users/${entry.userId}`}
+                          className="hover:text-gray-600 hover:underline"
+                        >
+                          #{entry.userId}
+                        </Link>
+                      </td>
 
                       {/* coins */}
                       <td className="px-5 py-3.5 text-right">

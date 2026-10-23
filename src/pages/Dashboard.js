@@ -4,7 +4,7 @@ import {
   FiUserCheck, FiClock, FiRefreshCw,
   FiAward,
 } from "react-icons/fi";
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { getAllUsers } from "../services/userService";
 import { getAllQuestions } from "../services/questionService";
 import { getAllRedeems } from "../services/redeemService";
@@ -304,7 +304,15 @@ const Dashboard = () => {
                             : <span className="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold bg-gray-100 text-gray-500">#{player.rank}</span>
                           }
                         </td>
-                        <td className="px-5 py-3 text-sm font-medium text-gray-700">{player.username}</td>
+                        <td className="px-5 py-3 text-sm font-medium text-gray-700">
+                          <Link
+                            to={`/dashboard/users/${player.userId}`}
+                            className="hover:text-red-600 hover:underline transition"
+                            title={`View profile of ${player.username}`}
+                          >
+                            {player.username}
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-sm font-bold text-gray-800 text-right">{player.totalCoins?.toLocaleString()} <span className="font-normal text-gray-400">🪙</span></td>
                       </tr>
                     ))

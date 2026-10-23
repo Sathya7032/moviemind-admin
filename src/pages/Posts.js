@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import {
   getAllPosts,
   createPost,
@@ -487,9 +488,18 @@ const Posts = () => {
                       <li key={comment.id || index} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <p className="font-semibold text-gray-800">
-                              {comment.commenterName || comment.userName || "Unknown user"}
-                            </p>
+                            {comment.userId || comment.commenterId ? (
+                              <Link
+                                to={`/dashboard/users/${comment.userId || comment.commenterId}`}
+                                className="font-semibold text-gray-800 hover:text-red-600 hover:underline inline-block"
+                              >
+                                {comment.commenterName || comment.userName || "Unknown user"}
+                              </Link>
+                            ) : (
+                              <p className="font-semibold text-gray-800">
+                                {comment.commenterName || comment.userName || "Unknown user"}
+                              </p>
+                            )}
                             <p className="mt-1 text-gray-700">
                               {comment.commentText || comment.text || comment.comment || JSON.stringify(comment)}
                             </p>

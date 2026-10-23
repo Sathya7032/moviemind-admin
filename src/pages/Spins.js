@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getAllSpins } from "../services/spinService";
 import {
@@ -250,9 +251,19 @@ const Spins = () => {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <div className="text-sm font-semibold text-gray-800">
-                        {spin.username || `User #${spin.userId}`}
-                      </div>
+                      {spin.userId ? (
+                        <Link
+                          to={`/dashboard/users/${spin.userId}`}
+                          className="text-sm font-semibold text-gray-800 hover:text-red-600 hover:underline transition"
+                          title={`View profile for user #${spin.userId}`}
+                        >
+                          {spin.username || `User #${spin.userId}`}
+                        </Link>
+                      ) : (
+                        <div className="text-sm font-semibold text-gray-800">
+                          {spin.username || "—"}
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="text-sm font-medium text-gray-700 whitespace-nowrap">

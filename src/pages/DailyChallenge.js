@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import {
   createEvent,
   getAllEvents,
@@ -906,18 +907,22 @@ const LeaderboardModal = ({ event, onClose }) => {
                             }
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
+                            <Link
+                              to={`/dashboard/users/${entry.userId}`}
+                              className="flex items-center gap-2.5 group"
+                              title={`View profile of ${entry.username}`}
+                            >
                               {entry.pictureUrl ? (
-                                <img src={entry.pictureUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                                <img src={entry.pictureUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 group-hover:scale-105 transition-transform" />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                                   <span className="text-xs font-bold text-indigo-500">
                                     {entry.username?.[0]?.toUpperCase() ?? "?"}
                                   </span>
                                 </div>
                               )}
-                              <span className="font-medium text-gray-800 truncate max-w-[140px]">{entry.username}</span>
-                            </div>
+                              <span className="font-medium text-gray-800 group-hover:text-red-600 group-hover:underline transition truncate max-w-[140px]">{entry.username}</span>
+                            </Link>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className="font-semibold text-gray-700">{entry.correctCount}</span>
@@ -1090,8 +1095,14 @@ const CorrectCountsModal = ({ event, onClose }) => {
                   {rows.map((row) => (
                     <tr key={row.challengeId} className="hover:bg-gray-50/60 transition">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800 truncate max-w-[160px]">{row.userName}</div>
-                        <div className="text-[11px] text-gray-400">ID #{row.userId}</div>
+                        <Link
+                          to={`/dashboard/users/${row.userId}`}
+                          className="group block"
+                          title={`View profile of ${row.userName}`}
+                        >
+                          <div className="font-medium text-gray-800 group-hover:text-red-600 group-hover:underline transition truncate max-w-[160px]">{row.userName}</div>
+                          <div className="text-[11px] text-gray-400 font-mono">ID #{row.userId}</div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3">
                         <ParticipantStatusBadge status={row.status} />

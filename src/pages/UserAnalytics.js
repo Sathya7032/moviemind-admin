@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   getDailyQuizAttemptsStats,
@@ -155,7 +156,14 @@ const UserHistoryModal = ({ user, onClose }) => {
             <div>
               <h3 className="text-base font-bold text-gray-800">Challenge Participation History</h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Showing activity for user: <strong className="text-gray-700">{user.name}</strong> (ID: {user.id})
+                Showing activity for user:{" "}
+                <Link
+                  to={`/dashboard/users/${user.id}`}
+                  className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                >
+                  {user.name}
+                </Link>{" "}
+                (ID: {user.id})
               </p>
             </div>
           </div>
@@ -481,12 +489,18 @@ const UserAnalytics = () => {
                         <td className="px-6 py-4 text-sm font-bold text-gray-600">{rankBadge}</td>
                         <td className="px-6 py-4 text-sm font-mono text-gray-500">#{entry.userId}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm shrink-0">
+                          <Link
+                            to={`/dashboard/users/${entry.userId}`}
+                            className="flex items-center gap-2 group"
+                            title={`View profile of ${entry.userName}`}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm shrink-0 group-hover:scale-105 transition-transform">
                               {entry.userName?.charAt(0).toUpperCase() || "?"}
                             </div>
-                            <span>{entry.userName || "—"}</span>
-                          </div>
+                            <span className="group-hover:text-red-600 group-hover:underline transition underline-offset-2">
+                              {entry.userName || "—"}
+                            </span>
+                          </Link>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-800">
                           {entry.totalChallengesAttempted ?? 0} attempts
@@ -756,15 +770,21 @@ const UserAnalytics = () => {
                   participations.map((p, index) => (
                     <tr key={index} className="hover:bg-gray-50/50 transition">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm shrink-0">
+                        <Link
+                          to={`/dashboard/users/${p.userId}`}
+                          className="flex items-center gap-2 group"
+                          title={`View profile of ${p.userName}`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white shadow-sm shrink-0 group-hover:scale-105 transition-transform">
                             {p.userName?.charAt(0).toUpperCase() || "?"}
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-gray-800 leading-tight">{p.userName || "—"}</div>
+                            <div className="text-sm font-semibold text-gray-800 group-hover:text-red-600 group-hover:underline transition underline-offset-2 leading-tight">
+                              {p.userName || "—"}
+                            </div>
                             <div className="text-[11px] font-mono text-gray-400 mt-0.5">ID: {p.userId}</div>
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-500">#{p.eventId}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-800">{p.eventTitle || "—"}</td>

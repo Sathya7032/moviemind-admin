@@ -11,7 +11,6 @@ import {
   FiRefreshCw,
   FiChevronLeft,
   FiChevronRight,
-  FiUser,
   FiMail,
   FiShield,
   FiAlertTriangle,
@@ -225,6 +224,7 @@ const Users = () => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [pageSize, setPageSize] = useState(50);
   const [sortOrder, setSortOrder] = useState("desc");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // 'ALL' | 'ACTIVE' | 'INACTIVE'
 
   /* ── status modal state ── */
   const [modalUser, setModalUser] = useState(null);
@@ -325,6 +325,9 @@ const Users = () => {
 
     if (!matchesSearch) return false;
 
+    /* User Status filter */
+    if (statusFilter !== "ALL" && u.status !== statusFilter) return false;
+
     /* Date filter */
     if (createdTimeFrom || createdTimeTo) {
       const userDate = new Date(u.createdTime);
@@ -364,6 +367,7 @@ const Users = () => {
   /* ── reset filters ── */
   const resetFilters = () => {
     setSearch("");
+    setStatusFilter("ALL");
     setCreatedTimeFrom("");
     setCreatedTimeTo("");
     setSortOrder("desc");
@@ -392,30 +396,42 @@ const Users = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           {
+            key: "ALL",
             label: "Total Users",
             value: totalUsers,
             icon: <FiUsers />,
             color: "text-indigo-500",
             bg: "bg-indigo-50",
+            ring: "ring-2 ring-indigo-400 bg-indigo-50/20",
           },
           {
+            key: "ACTIVE",
             label: "Active Users",
             value: activeUsers,
-            icon: <FiUser />,
+            icon: <FiUserCheck />,
             color: "text-emerald-500",
             bg: "bg-emerald-50",
+            ring: "ring-2 ring-emerald-500 bg-emerald-50/20",
           },
           {
+            key: "INACTIVE",
             label: "Inactive Users",
             value: inactiveUsers,
             icon: <FiUserX />,
             color: "text-red-500",
             bg: "bg-red-50",
+            ring: "ring-2 ring-red-400 bg-red-50/20",
           },
         ].map((s) => (
-          <div
+          <button
             key={s.label}
-            className="flex items-center gap-4 p-5 bg-white rounded-xl shadow-sm hover:-translate-y-0.5 hover:shadow-md transition"
+            onClick={() => {
+              setStatusFilter(s.key);
+              setPage(1);
+            }}
+            className={`flex items-center gap-4 p-5 bg-white rounded-xl shadow-sm hover:-translate-y-0.5 hover:shadow-md transition text-left w-full cursor-pointer border border-gray-100 ${
+              statusFilter === s.key ? s.ring : ""
+            }`}
           >
             <div
               className={`w-12 h-12 rounded-xl ${s.bg} ${s.color} flex items-center justify-center text-xl shrink-0`}
@@ -424,9 +440,14 @@ const Users = () => {
             </div>
             <div>
               <div className="text-xl font-bold text-gray-800">{loading ? "—" : s.value}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                <span>{s.label}</span>
+                {statusFilter === s.key && (
+                  <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded">Filtered</span>
+                )}
+              </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -481,19 +502,64 @@ const Users = () => {
           </div>
         </div>
 
-        {/* ── Date Filter & Sort ── */}
+        {/* ── Status, Date Filter & Sort ── */}
         {activeTab === "users" && (
-          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+          <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Active / Inactive Status Pills */}
+                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 shadow-xs">
+                  <button
+                    onClick={() => {
+                      setStatusFilter("ALL");
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                      statusFilter === "ALL"
+                        ? "bg-[#1e1e2d] text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    }`}
+                  >
+                    All ({totalUsers})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setStatusFilter("ACTIVE");
+                      setPage(1);
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                      statusFilter === "ACTIVE"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "text-emerald-700 hover:bg-emerald-50"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === "ACTIVE" ? "bg-white" : "bg-emerald-500"}`} />
+                    Active ({activeUsers})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setStatusFilter("INACTIVE");
+                      setPage(1);
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                      statusFilter === "INACTIVE"
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "text-red-600 hover:bg-red-50"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === "INACTIVE" ? "bg-white" : "bg-red-500"}`} />
+                    Inactive ({inactiveUsers})
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setShowDateFilter(!showDateFilter)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition"
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition"
                 >
-                  <FiCalendar className="text-sm" />
+                  <FiCalendar className="text-xs" />
                   Date Filter
                   {(createdTimeFrom || createdTimeTo) && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full">
                       Active
                     </span>
                   )}
@@ -504,19 +570,19 @@ const Users = () => {
                     setSortOrder(e.target.value);
                     setPage(1);
                   }}
-                  className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
                 >
                   <option value="desc">Newest First</option>
                   <option value="asc">Oldest First</option>
                 </select>
               </div>
 
-              {(createdTimeFrom || createdTimeTo) && (
+              {(createdTimeFrom || createdTimeTo || statusFilter !== "ALL" || search) && (
                 <button
                   onClick={resetFilters}
-                  className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
                 >
-                  Clear all filters
+                  <FiX className="text-xs" /> Clear filters
                 </button>
               )}
             </div>
@@ -602,17 +668,20 @@ const Users = () => {
                           {(page - 1) * pageSize + idx + 1}
                         </td>
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
+                          <Link
+                            to={`/dashboard/users/${user.id}`}
+                            className="flex items-center gap-3 group"
+                          >
                             <Avatar name={user.name} pictureUrl={user.pictureUrl} />
                             <div>
-                              <div className="text-sm font-semibold text-gray-800 leading-tight">
+                              <div className="text-sm font-semibold text-gray-800 leading-tight group-hover:text-red-600 group-hover:underline transition underline-offset-2">
                                 {user.fullName || user.name}
                               </div>
                               {user.fullName && user.name !== user.fullName && (
                                 <div className="text-xs text-gray-400">@{user.name}</div>
                               )}
                             </div>
-                          </div>
+                          </Link>
                         </td>
                         <td className="px-5 py-3.5 text-sm text-gray-600">{user.email}</td>
                         <td className="px-5 py-3.5">{roleBadge(user.role)}</td>
@@ -783,10 +852,15 @@ const Users = () => {
                               </span>
                             </td>
                             <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-3">
+                              <Link
+                                to={`/dashboard/users/${entry.userId}`}
+                                className="flex items-center gap-3 group"
+                              >
                                 <Avatar name={entry.username} />
-                                <span className="text-sm font-semibold text-gray-800">{entry.username}</span>
-                              </div>
+                                <span className="text-sm font-semibold text-gray-800 group-hover:text-red-600 group-hover:underline transition underline-offset-2">
+                                  {entry.username}
+                                </span>
+                              </Link>
                             </td>
                             <td className="px-5 py-3.5">
                               <span className="font-mono text-sm bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md">

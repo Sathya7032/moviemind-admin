@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { getAllRedeems, markProcessing, approveRedeem, rejectRedeem } from "../services/redeemService";
+import { getAllUsers } from "../services/userService";
 import { createReward } from "../services/rewardService";
 import { toast } from "react-toastify";
 import {
@@ -125,7 +127,16 @@ const ActionModal = ({ target, onConfirm, onCancel, submitting }) => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">User</span>
-              <span className="font-semibold text-gray-800">{target.redeem.name ?? `#${target.redeem.userId}`}</span>
+              {target.redeem.userId ? (
+                <Link
+                  to={`/dashboard/users/${target.redeem.userId}`}
+                  className="font-semibold text-gray-800 hover:text-red-600 hover:underline"
+                >
+                  {target.redeem.name ?? `#${target.redeem.userId}`}
+                </Link>
+              ) : (
+                <span className="font-semibold text-gray-800">{target.redeem.name ?? "—"}</span>
+              )}
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Coins</span>
@@ -234,16 +245,33 @@ const CreateRewardModal = ({ redeem, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
           {/* User — read-only, from redeem */}
-          <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-              {(redeem.name ?? "U").charAt(0).toUpperCase()}
+          {redeem.userId ? (
+            <Link
+              to={`/dashboard/users/${redeem.userId}`}
+              className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100/60 transition group"
+              title="View user details"
+            >
+              <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shrink-0 group-hover:scale-105 transition-transform">
+                {(redeem.name ?? "U").charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-emerald-700 group-hover:underline truncate">{redeem.name ?? "Unknown User"}</p>
+                <p className="text-xs text-emerald-600">User ID: {redeem.userId}</p>
+              </div>
+              <FiCheckCircle className="text-emerald-500 shrink-0" />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                {(redeem.name ?? "U").charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-emerald-700 truncate">{redeem.name ?? "Unknown User"}</p>
+                <p className="text-xs text-emerald-600">User ID: {redeem.userId}</p>
+              </div>
+              <FiCheckCircle className="text-emerald-500 shrink-0" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-emerald-700 truncate">{redeem.name ?? "Unknown User"}</p>
-              <p className="text-xs text-emerald-600">User ID: {redeem.userId}</p>
-            </div>
-            <FiCheckCircle className="text-emerald-500 shrink-0" />
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -330,6 +358,8 @@ const Redeems = () => {
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [filter, setFilter]         = useState("ALL");
+  const [userFilter, setUserFilter] = useState("ALL"); // "ALL" | "ACTIVE" | "INACTIVE"
+  const [userStatusMap, setUserStatusMap] = useState({});
   const [modal, setModal]           = useState(null);   // { redeem, action }
   const [submitting, setSubmitting] = useState(false);
   const [rewardTarget, setRewardTarget] = useState(null); // redeem for reward modal
@@ -337,9 +367,28 @@ const Redeems = () => {
   const fetchRedeems = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAllRedeems();
-      if (res.success) setData(res.data);
-      else toast.error("Failed to load redeem requests");
+      const [redeemsRes, usersRes] = await Promise.allSettled([
+        getAllRedeems(),
+        getAllUsers(0, 100000),
+      ]);
+
+      if (redeemsRes.status === "fulfilled" && redeemsRes.value?.success) {
+        setData(redeemsRes.value.data || []);
+      } else if (redeemsRes.status === "fulfilled" && Array.isArray(redeemsRes.value)) {
+        setData(redeemsRes.value);
+      } else {
+        toast.error("Failed to load redeem requests");
+      }
+
+      if (usersRes.status === "fulfilled") {
+        const uRes = usersRes.value;
+        const users = Array.isArray(uRes) ? uRes : (uRes?.data?.content || (Array.isArray(uRes?.data) ? uRes.data : []));
+        const map = {};
+        users.forEach((u) => {
+          if (u.id) map[u.id] = u.status || "ACTIVE";
+        });
+        setUserStatusMap(map);
+      }
     } catch {
       toast.error("Failed to load redeem requests");
     } finally {
@@ -374,6 +423,10 @@ const Redeems = () => {
     }
   };
 
+  const getUserStatus = useCallback((userId, rUserStatus) => {
+    return rUserStatus || userStatusMap[userId] || "ACTIVE";
+  }, [userStatusMap]);
+
   const counts = {
     ALL:        data.length,
     PENDING:    data.filter((r) => r.status === "PENDING").length,
@@ -382,8 +435,16 @@ const Redeems = () => {
     REJECTED:   data.filter((r) => r.status === "REJECTED").length,
   };
 
+  const userStatusCounts = {
+    ALL: data.length,
+    ACTIVE: data.filter((r) => getUserStatus(r.userId, r.userStatus) === "ACTIVE").length,
+    INACTIVE: data.filter((r) => getUserStatus(r.userId, r.userStatus) === "INACTIVE").length,
+  };
+
   const filtered = data.filter((r) => {
-    const matchStatus = filter === "ALL" || r.status === filter;
+    const matchRedeemStatus = filter === "ALL" || r.status === filter;
+    const uStatus = getUserStatus(r.userId, r.userStatus);
+    const matchUserStatus = userFilter === "ALL" || uStatus === userFilter;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -392,7 +453,7 @@ const Redeems = () => {
       r.name?.toLowerCase().includes(q) ||
       r.status?.toLowerCase().includes(q) ||
       r.remarks?.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    return matchRedeemStatus && matchUserStatus && matchSearch;
   });
 
   const totalCoins   = data.reduce((s, r) => s + (r.coins ?? 0), 0);
@@ -450,14 +511,16 @@ const Redeems = () => {
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
 
         {/* toolbar */}
-        <div className="px-5 pt-4 pb-0 border-b border-gray-100">
-          <div className="flex items-center gap-1 overflow-x-auto pb-3">
+        <div className="px-5 pt-4 pb-3 border-b border-gray-100 space-y-3">
+          {/* Top row: Redeem Status Tabs & Search */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 hidden sm:inline">Request Status:</span>
             {FILTER_TABS.map((tab) => (
               <button key={tab} onClick={() => setFilter(tab)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                   filter === tab ? "bg-[#1e1e2d] text-white shadow" : "text-gray-500 hover:bg-gray-100"
                 }`}>
-                {tab === "ALL" ? "All" : STATUS_META[tab]?.label}
+                {tab === "ALL" ? "All Requests" : STATUS_META[tab]?.label}
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${
                   filter === tab ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
                 }`}>{counts[tab]}</span>
@@ -470,6 +533,60 @@ const Redeems = () => {
                   className="pl-9 pr-4 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 w-36 sm:w-48" />
               </div>
             </div>
+          </div>
+
+          {/* Bottom row: User Status Filter (Active / Inactive) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500">User Account:</span>
+              <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+                <button
+                  onClick={() => setUserFilter("ALL")}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                    userFilter === "ALL"
+                      ? "bg-white text-gray-800 shadow-xs"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  All Users ({userStatusCounts.ALL})
+                </button>
+                <button
+                  onClick={() => setUserFilter("ACTIVE")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition ${
+                    userFilter === "ACTIVE"
+                      ? "bg-emerald-500 text-white shadow-xs"
+                      : "text-gray-600 hover:text-emerald-700 hover:bg-emerald-50/50"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${userFilter === "ACTIVE" ? "bg-white" : "bg-emerald-500"}`} />
+                  Active Users ({userStatusCounts.ACTIVE})
+                </button>
+                <button
+                  onClick={() => setUserFilter("INACTIVE")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition ${
+                    userFilter === "INACTIVE"
+                      ? "bg-red-500 text-white shadow-xs"
+                      : "text-gray-600 hover:text-red-700 hover:bg-red-50/50"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${userFilter === "INACTIVE" ? "bg-white" : "bg-red-500"}`} />
+                  Inactive Users ({userStatusCounts.INACTIVE})
+                </button>
+              </div>
+            </div>
+
+            {(userFilter !== "ALL" || filter !== "ALL" || search) && (
+              <button
+                onClick={() => {
+                  setUserFilter("ALL");
+                  setFilter("ALL");
+                  setSearch("");
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+              >
+                <FiX className="text-xs" /> Reset filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -509,6 +626,7 @@ const Redeems = () => {
                 filtered.map((redeem) => {
                   const isApproved = redeem.status === "APPROVED";
                   const isRejected = redeem.status === "REJECTED";
+                  const uStatus = getUserStatus(redeem.userId, redeem.userStatus);
                   return (
                     <tr key={redeem.redeemId} className="hover:bg-gray-50/70 transition">
                       {/* ID */}
@@ -518,19 +636,47 @@ const Redeems = () => {
                         </span>
                       </td>
 
-                      {/* User — name + userId from API */}
+                      {/* User — name + userId + user status badge */}
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                            {(redeem.name ?? "U").charAt(0).toUpperCase()}
+                        {redeem.userId ? (
+                          <Link
+                            to={`/dashboard/users/${redeem.userId}`}
+                            className="flex items-center gap-2.5 group"
+                            title={`View profile of ${redeem.name || `User #${redeem.userId}`}`}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0 group-hover:scale-105 transition-transform">
+                              {(redeem.name ?? "U").charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-semibold text-gray-800 group-hover:text-red-600 group-hover:underline transition underline-offset-2 truncate">
+                                  {redeem.name ?? "—"}
+                                </p>
+                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold shrink-0 ${
+                                  uStatus === "ACTIVE"
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    : "bg-red-50 text-red-600 border border-red-200"
+                                }`}>
+                                  <span className={`w-1 h-1 rounded-full mr-1 ${uStatus === "ACTIVE" ? "bg-emerald-500" : "bg-red-500"}`} />
+                                  {uStatus === "ACTIVE" ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-400 font-mono">ID: {redeem.userId}</p>
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              {(redeem.name ?? "U").charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                {redeem.name ?? "—"}
+                              </p>
+                              <p className="text-[11px] text-gray-400 font-mono">ID: {redeem.userId}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">
-                              {redeem.name ?? "—"}
-                            </p>
-                            <p className="text-[11px] text-gray-400">ID: {redeem.userId}</p>
-                          </div>
-                        </div>
+                        )}
                       </td>
 
                       {/* Coins */}

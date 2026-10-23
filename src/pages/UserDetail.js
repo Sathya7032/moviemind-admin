@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { getUserSummaryById, deactivateUser, activateUser } from "../services/userService";
 import { toast } from "react-toastify";
 import {
@@ -97,6 +97,8 @@ const UserDetail = () => {
   }, [id, navigate]);
 
   useEffect(() => {
+    setRewardsPage(1);
+    setReferredPage(1);
     fetchUserSummary();
   }, [fetchUserSummary]);
 
@@ -482,10 +484,14 @@ const UserDetail = () => {
                                   {(referredPage - 1) * pageSize + idx + 1}
                                 </td>
                                 <td className="py-3.5 px-4">
-                                  <div className="flex items-center gap-3">
+                                  <Link
+                                    to={`/dashboard/users/${refUser.userId}`}
+                                    className="flex items-center gap-3 group"
+                                    title={`View profile of ${refUser.name}`}
+                                  >
                                     <Avatar name={refUser.name} size="small" />
-                                    <span className="text-sm font-semibold text-gray-800">{refUser.name}</span>
-                                  </div>
+                                    <span className="text-sm font-semibold text-gray-800 group-hover:text-red-600 group-hover:underline transition underline-offset-2">{refUser.name}</span>
+                                  </Link>
                                 </td>
                                 <td className="py-3.5 px-4 text-sm text-gray-600">
                                   {refUser.email}

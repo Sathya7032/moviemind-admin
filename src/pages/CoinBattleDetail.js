@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { getAdminBattleDetails, completeBattle } from "../services/coinBattleService";
 import { toast } from "react-toastify";
 import {
@@ -248,13 +248,27 @@ const CoinBattleDetail = () => {
           {/* Creator Details */}
           <div className="px-6 pb-6">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Hosted By</h3>
-            <div className="mt-4 flex items-center gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-              <Avatar name={battleGroup.createdByName} pictureUrl={battleGroup.createdByPicture} size="md" />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-gray-800 truncate">{battleGroup.createdByName}</div>
-                <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Creator ID: {battleGroup.createdById}</div>
+            {battleGroup.createdById ? (
+              <Link
+                to={`/dashboard/users/${battleGroup.createdById}`}
+                className="mt-4 flex items-center gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100 hover:bg-red-50/50 hover:border-red-200 transition group"
+                title={`View profile of ${battleGroup.createdByName}`}
+              >
+                <Avatar name={battleGroup.createdByName} pictureUrl={battleGroup.createdByPicture} size="md" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-800 group-hover:text-red-600 group-hover:underline truncate">{battleGroup.createdByName}</div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Creator ID: {battleGroup.createdById}</div>
+                </div>
+              </Link>
+            ) : (
+              <div className="mt-4 flex items-center gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                <Avatar name={battleGroup.createdByName} pictureUrl={battleGroup.createdByPicture} size="md" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-800 truncate">{battleGroup.createdByName}</div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Creator ID: {battleGroup.createdById}</div>
+                </div>
               </div>
-            </div>
+            )}
             <div className="mt-4 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-400">Created:</span>
@@ -324,9 +338,19 @@ const CoinBattleDetail = () => {
                           <Avatar name={p.userName} pictureUrl={p.userPicture} />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-gray-800 truncate" title={p.userName}>
-                                {p.userName}
-                              </span>
+                              {p.userId || p.id ? (
+                                <Link
+                                  to={`/dashboard/users/${p.userId || p.id}`}
+                                  className="text-sm font-bold text-gray-800 hover:text-red-600 hover:underline transition truncate"
+                                  title={`View profile of ${p.userName}`}
+                                >
+                                  {p.userName}
+                                </Link>
+                              ) : (
+                                <span className="text-sm font-bold text-gray-800 truncate" title={p.userName}>
+                                  {p.userName}
+                                </span>
+                              )}
                               {p.rewardGiven && (
                                 <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-0.5">
                                   <FiCheck className="text-[10px]" /> Winner
@@ -461,7 +485,17 @@ const CoinBattleDetail = () => {
                             {filteredAnswers.map((ans) => (
                               <tr key={ans.id} className="hover:bg-gray-50/50 transition text-xs">
                                 <td className="py-3 px-3 font-semibold text-gray-800">
-                                  {ans.username || ans.playerName}
+                                  {ans.userId ? (
+                                    <Link
+                                      to={`/dashboard/users/${ans.userId}`}
+                                      className="hover:text-red-600 hover:underline transition"
+                                      title={`View user profile #${ans.userId}`}
+                                    >
+                                      {ans.username || ans.playerName}
+                                    </Link>
+                                  ) : (
+                                    ans.username || ans.playerName
+                                  )}
                                 </td>
                                 <td className="py-3 px-3 text-gray-600 max-w-[200px] truncate" title={ans.questionText}>
                                   {ans.questionText}

@@ -314,12 +314,25 @@ const CoinBattles = () => {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <Avatar name={b.createdByName} pictureUrl={b.createdByPicture} />
-                        <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]" title={b.createdByName}>
-                          {b.createdByName}
-                        </span>
-                      </div>
+                      {b.createdById ? (
+                        <Link
+                          to={`/dashboard/users/${b.createdById}`}
+                          className="flex items-center gap-2 group"
+                          title={`View profile of ${b.createdByName}`}
+                        >
+                          <Avatar name={b.createdByName} pictureUrl={b.createdByPicture} />
+                          <span className="text-sm font-medium text-gray-700 group-hover:text-red-600 group-hover:underline transition underline-offset-2 truncate max-w-[120px]" title={b.createdByName}>
+                            {b.createdByName}
+                          </span>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Avatar name={b.createdByName} pictureUrl={b.createdByPicture} />
+                          <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]" title={b.createdByName}>
+                            {b.createdByName}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-center text-sm font-semibold text-gray-700">
                       {b.entryCoins} 🪙
